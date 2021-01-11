@@ -412,6 +412,46 @@ Possible error codes explanation:
     + Attributes (Errors)
 
 
+# Group Merchantsite resources
+Services that should be developed and exposed by partner to allow Home Credit asynchronously inform partner about important changes regarding particular *applications*
+
+> **ATTENTION:** This set of APIs should be developed by the partner and accept calls specified below.
+This option is an alternative to `GET /financing/v2/applications/results`. Any or both of these options may be used.
+-->
+
+
+## Application notification [/partner/notification/endpoint]
+This resource is used to inform partner about important changes within particular *application*. Namely in following situations:
+
+| Trigger                                                             | Corresponding `Application.status` | Corresponding `Application.financedSubject.cash.status`  |
+| ---                                                                 | ---                                | ---                                                      |
+| Application was approved (approval process is proceeding correctly) | APPROVED                           | IN_PROCESS                                               |
+| Application was rejected                                            | REJECTED                           | CANCELLED                                                |
+| Application was cancelled                                           | CANCELLED                          | CANCELLED                                                |
+
+Request is filled with at least following information:
+- Application unique ID
+- Application status
+- Time of a triggering `Application.status` change
+- Notification sequence number
+- Notification dispatch time
+- Hashed message (checksum) - used to verify data integrity and data authenticity
+
+
+### Application notification [POST]
+Notify partner about change in the application process.
+
++ Request (application/json;charset=UTF-8)
+    + Attributes (NotificationRequest)
+
+
++ Response 204
+        Notification accepted
+
++ Response 400 (application/json;charset=UTF-8)
+
+        Can not process changes
+
 
 
 # Data Structures
@@ -481,9 +521,9 @@ SHOULD be valid in combination with attributes `cash.amount` and `preferredInsta
 
 
 ## MerchantURLs(object)
-+ approvedRedirect: `https://www.partnereshop.cz` (string, optional) - URL of the partner used for redirection of the client back to partner website after the application approval. RECOMMENDED, MUST be a valid URL according to [RFC 3986](https://tools.ietf.org/html/rfc3986). MUST NOT be longer than 1000 characters.
-+ rejectedRedirect: `https://www.partnereshop.cz/kosik` (string, optional) - URL of the partner used for redirection of the client back to partner website after application rejection. RECOMMENDED. MUST be valid URL according to [RFC 3986](https://tools.ietf.org/html/rfc3986). MUST NOT be longer than 1000 characters.
-+ notificationEndpoint: `https://www.partnereshop.cz/order/AA234` (string, optional) - URL of the partner used as a notification endpoint for notifying partner about important updates in the application process (approval, rejection, cancelation, etc.). RECOMMENDED. MUST be valid URL according to [RFC 3986](https://tools.ietf.org/html/rfc3986). MUST NOT be longer than 1000 characters.
++ approvedRedirect: `https://www.partnereshop.cz` (string, optional) - URL of the partner used for redirection of the client back to partner website after the application approval. MUST be a valid URL according to [RFC 3986](https://tools.ietf.org/html/rfc3986). URL SHOULD contain scheme (for example `https://`) otherwise some browsers will not redirect client correcly.  MUST NOT be longer than 1000 characters.
++ rejectedRedirect: `https://www.partnereshop.cz/kosik` (string, optional) - URL of the partner used for redirection of the client back to partner website after application rejection. MUST be valid URL according to [RFC 3986](https://tools.ietf.org/html/rfc3986). URL SHOULD contain scheme (for example `https://`) otherwise some browsers will not redirect client correcly. MUST NOT be longer than 1000 characters.
++ notificationEndpoint: `https://www.partnereshop.cz/order/AA234` (string, optional) - URL of the partner used as a notification endpoint for notifying partner about important updates in the application process (approval, rejection, cancellation, etc.). MUST be valid URL according to [RFC 3986](https://tools.ietf.org/html/rfc3986). URL SHOULD contain scheme (for example `https://`). MUST NOT be longer than 1000 characters.
 
 
 ## ApplicationBase(object)
@@ -562,7 +602,7 @@ Detail of result of the application approval process
 
 ## NotificationContent(object)
 + applicationId: `123e4567-e89b-12d3-a456-426655440000` (string,  required) - Primary identifier of the application
-+ applicationStatus (enum, required) - Status of the application
++ applicationStatus: `APPROVED` (enum, required) - Status of the application
   + `CONFIRMED`
   + `CREATED`
   + `PRESCORED`
@@ -571,7 +611,7 @@ Detail of result of the application approval process
   + `ALTERNATIVE`
   + `REJECTED`
   + `CANCELLED`
-+ cashStatus (enum, optional) - Status of the Cash loan
++ cashStatus: `PROCESSING` (enum, optional) - Status of the Cash loan
   + `PROCESSING`
   + `CANCELLED`
   + `TO_PAY`
