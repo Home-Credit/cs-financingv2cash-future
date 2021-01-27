@@ -465,7 +465,7 @@ Notify partner about change in the application process.
 ## ApplicationCustomer(object)
 + `firstName`: `John` (string, optional) -  Customer first (given) name. String values longer than 100 characters will be shortened to 100 characters.
 + `lastName`: `Newborn` (string, optional) - Customer last (family) name. String values longer than 100 characters will be shortened to 100 characters.
-+ `fullName`: `Ing. John Newborn, Csc.` (string, optional) - Customer full name, including academical degrees and salutation. Attribute `fullName` is parsed (and eventually shortened) into `firstName` and `lastName`; `fullName` is never returned in response. In case `firstName`, `lastName` and `fullName` are provided, `fullName` is discarded.
++ `fullName`: `Ing. John Newborn, Csc.` (string, optional) - Customer full name, including academical degrees and salutation. Attribute `fullName` is parsed (and eventually shortened) into `firstName` and `lastName`; `fullName` is never returned in response. In case all three atributes are provided, `fullName` is discarded.
 + `email`: `john.newborn@country.com` (string, optional) - E-mail address of customer. MUST be valid email according to [RFC 2822](https://tools.ietf.org/html/rfc2822).
 + `phone`: `+420777123456` (string, optional) - Phone number with country code (including leading `+`)
 + `addresses` (array[Address], fixed-type, optional) - Addresses.
@@ -555,6 +555,8 @@ Precheck data.
 
 ### Properties
 + customer (ApplicationCustomer, required) - Customer data
+  + `firstName`: `John` (string, optional) -  Customer first (given) name. String values longer than 100 characters will be shortened to 100 characters. One of `firstName` and `fullName` is REQUIRED.
+  + `lastName`: `Newborn` (string, optional) - Customer last (family) name. String values   longer than 100 characters will be shortened to 100 characters.  One of `lastName` and `fullName` is REQUIRED.
 + financedSubject (PrecheckFinancedSubject, required) - Subject of financing (for example IPhone purchase, loan for 20 000 CZK ...)
 
 ## PrecheckFinancedSubject(object)
