@@ -4,10 +4,11 @@ HOST: https://api.homecredit.cz
 # Home Credit - Partner API - CASH - Future version
 API documentation for Home Credit API for partners (next release documentation).
 
-Version on documentation: 2.2.1(08/2020)
+Version on documentation: 2.3.1(03/2021)
 
 | Version        | Release | Release date | News |
 | ---            | ---     | ---          | ---  |
+| 2.3.1 (03/2021) | CS78    | 17.3.2021    | New [calculation resource](#reference/calculation-resources) |
 | 2.2.1 (08/2020) | CS71    | 18.8.2020    | New resources for getting [application process results](#reference/application-resources/process-result-of-single-application) |
 | 2.1.1 | CS64    | 10.3.2020    | Initial version |
 
@@ -21,7 +22,9 @@ Described services aim to allow customers the smooth running through the process
 | ---                                                         | ---                                                                                                                                                          |
 | [Security](#reference/security)                             | Security rules and principles                                                                                                                                |
 | [Application resources](#reference/application-resources)   | Resources that allows the processing of *application* during its whole life cycle                                                                                |
-| [Scoring resources](#reference/scoring-resources)   | Resources that allows customer preliminary scoring   |
+| [Scoring resources](#reference/scoring-resources)           | Resources that allows customer preliminary scoring   |
+| [Calculation resources](#reference/calculation-resources)   | Product calcualation resources |
+| [Merchantsite resources](#reference/merchantsite-resources) | Services that should be developed and exposed by partners to allow HC asynchronously inform them about important changes regarding particular *application* |
 
 ### Basic implementation
 The basic and minimum way how to implement HCO API is to at least implement:
@@ -380,9 +383,44 @@ In other cases, partner receives one of the following errors:
     + Attributes (Errors)
 
 
+# Group Calculation resources
+
+## Financing offers [/v2/financedSubject/financing/offers]
+Partner uses this resource to calculate the appropriate product. To perform the calculation, it is necessary to provide at least the following data:
+- the amount the client wants to borrow
+- financed subject
+- method of financing
+
+The partner can choose from which product set the products will be calculated. If none is provided, the default product set for the selected financing method is used.
+If the client has already chosen the product or the amount of the installment that he would like to repay, he can also state this fact.
+
+The response returns a collection of products that meet the input, for each product returns the amount of the credit amount, a set of financial parameters (minimum installment, interest rate, etc.) and for variable products several examples of repayment with different installments.
+
+One product is labeled as favourite product which is the most suitable for the client.
+
+Possible error codes explanation:
+| Status code | Code                | Explanation                                                                     |
+| ---         | ---                 | ---                                                                             |
+| 400         | INVALID_REQUEST     | Request was not well formatted (malformed request syntax, size too large, etc.) |
+| 500         | FAILURE             | Internal failure                                                                |
+
+### Calculate offers [POST]
+
++ Request Valid (application/json;charset=UTF-8)
+  + Attributes (CalculateOffersRequest)
+
++ Response 200 (application/json;charset=UTF-8)
+calculateOffers
+    + Attributes (CalculateOffersResponse)
+
+
++ Response 400(application/json;charset=UTF-8)
+            Error in processing request
+    + Attributes (Errors)
+
+
 # Group Scoring resources
 Services that allow partners to find out a probability of *application's* approval.
-
 
 ## Precheck [/financing/v2/scorings/precheck]
 Simple operation for customer preliminary scoring. Returns suitability of a particular customer for financing services. It is best suitable for identifying clients who will probably be rejected. Take into account that positive recommendation can not guarantee customer's approval (it is not the main scoring) as the result is based on only a few elementary pieces of information about the customer.
@@ -444,14 +482,12 @@ Notify partner about change in the application process.
 + Request (application/json;charset=UTF-8)
     + Attributes (NotificationRequest)
 
-
 + Response 204
         Notification accepted
 
 + Response 400 (application/json;charset=UTF-8)
 
         Can not process changes
-
 
 
 # Data Structures
@@ -497,13 +533,15 @@ Notify partner about change in the application process.
 
 ## CashFinancing(object)
 + type (enum, required) - Financing type suitable for CASH application.
-    + `LOAN_WALLET`
+    + `LOAN_WALLET` - Revolving loan used specifically for lending money (usually not suitable for shopping purposes).
++ One Of
 + loanWallet (SettingsLoanWallet,  required) - Settings for LOAN_WALLET Financing type. REQUIRED for LOAN_WALLET financing type
 
 
 ## SettingsLoanWallet(object)
 + preferredInstallment (Amount,  optional) - Preferred installment amount client would like to pay in monthly installment to pay his loan (amount should be rounded to hundreds CZK/ 5 EUR).
 OPTIONAL, if not provided, a minimum installment amount would be used.
++ productSetCode: `COCONL` (string, optional) - Product set code. If chosen product is not from default product set it is RECOMMENDED to provide code of its product set.  Invalid product set is discarded.
 + productCode: `COCONL06` (string,  optional) - Product code (obtained from calculation result).
 SHOULD be valid in combination with attributes `cash.amount` and `preferredInstallment`. Invalid product is discarded and the client will choose the correct product after redirection to Home Credit's front-end application; examples of invalid settings: the product does not exist or does not support the requested credit amount.
 
@@ -548,7 +586,58 @@ SHOULD be valid in combination with attributes `cash.amount` and `preferredInsta
 + redirect (RedirectURL, optional) - Data for workflow step `REDIRECT`
 
 ## RedirectURL(object)
-+ gatewayRedirectUrl: `https://pujcka.homecredit.cz` (string,  required) - Gateway redirect URL. Partner SHOULD redirect the client to this address for the continuation of the application approval process.
++ gatewayRedirectUrl: `https://nasplatky.homecredit.cz` (string,  required) - Gateway redirect URL. partner SHOULD redirect the client to this address for the continuation of the application approval process.
+
+
+## CalculateOffersRequest (object)
++ type (enum, required) - Financed subject type
+  + `CASH` - Loan without any specific purpose
++ One Of
+  + cash (CashCalculateOffers, required) - Information about client's financial requirements. REQUIRED for CASH type of Financed subject.
+
+## CashCalculateOffers (object)
++ amount (Amount, required) - Preferred amount clients want to lend. MAY be provided; if not provided, the maximum possible amount would be offered to the client.
++ financing (CashFinancing, required) - Information about form of financing CASH application (for example Close-end Loan, Revolving Loan, etc.).
+
+
+## CalculateOffersResponse (object)
++ type (enum, required) - Financing type suitable for CASH application.
+    + `LOAN_WALLET` - Revolving loan used specifically for lending money (usually not suitable for shopping purposes).
++ One Of
+    + loanWallet (LoanWalletOffer,  required) - Settings for LOAN_WALLET Financing type. REQUIRED for LOAN_WALLET financing type
+
+## WalletOffer (object)
++ productCode: `HCONLESHOP` (string, required) - Product offer code
++ creditAmount (AvailableCreditAmount, required) - Available credit amount of product offer
++ calculation (CalculationDetail, required) - Financial characteristics of product offer
++ flags (array[enum], fixed-type, optional) - Additional characteristics of product offer code
+  + `FAVOURITE` - Favourite product, usually the first one to offer to client
+
+## LoanWalletOffer (WalletOffer)
++ repaymentExamples (array[RepaymentExample],fixed-type,optional) - Examples of debt repayement for flexible product with variable end (with various installments)
+
+## AvailableCreditAmount (object)
++ minimum (Amount, required) - Minimal available credit amount
++ maximum (Amount, required) - Maximal available credit amount. It may be the same as the minimal available credit amount
+
+## CalculationDetail (object)
++ installment (Amount, required) - Value of monthly installment. Approximated for product offers with variable end
++ annualInterestRate: 0.17 (number, required) - Annual interest rate
++ annualPercentageRate: 0.23 (string, required) - Annual percentage rate of loan (so-called "RPSN"/"RPMN")
++ numberOfInstallments: 12 (number, required) - Count of installments needed to repay purchased loan. Approximated for product offers with a variable end.
++ installmentFirstDate: `2021-03-20` (string, required) - Date of first installment.
++ installmentLastDate: `2022-02-20` (string, required) - Date of last installment. Approximated for product offers with a variable end.
++ predictedProvisionDate (string, required) - Predicted date of sending fund to client's account
++ amountToPay (Amount, required) - Total amount will pay for the loan (including the costs)
++ installmentDay: 20 (number, required) - Day of installment
++ legalLine: `Ilustrativní výpočet dle zákona: Výše úvěru 10 000 Kč, roční úroková sazba 14,88 %, RPSN 15,9 %, celkem zaplatíte 10 806 Kč. Jednotlivé po sobě jdoucí měsíční splátky: 957 Kč, 947 Kč, 937 Kč, 926 Kč, 916 Kč, 906 Kč, 895 Kč, 885 Kč, 875 Kč, 864 Kč, 854 Kč, 844 Kč. Splátky a částka, kterou celkem zaplatíte, jsou matematicky zaokrouhleny.` (string, required) - Legal example of repayment
+
+## RepaymentExample(object)
++ installment (Amount, required) - Value of monthly installment.
++ numberOfInstallments: 12 (number, required) - Count of installments needed to repay purchased loan for chosen `installment` (approximated)
++ amountToPay (Amount, required) - Total amount client will pay for the loan (including the costs) for chosen `installmemt` (approximated)
++ flags (array[enum], fixed-type, optional) - Additional characteristics of example repayment
+  + `FAVOURITE` - Favourite example, usually the first one to offer to client
 
 ## PrecheckRequest(object)
 Precheck data.
