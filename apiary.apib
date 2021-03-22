@@ -352,11 +352,11 @@ In other cases, partner receives one of the following errors:
     + Attributes (Errors)
 
 
-## Process result of group of applications [/financing/v2/applications/results{?applicationCreatedDateFrom,applicationCreatedDateTo,onlyFinishedApplications}]
+## Process result of group of applications [/financing/v2/applications/results{?createdFrom,createdTo,onlyFinished}]
 Partner may use resource `/financing/v2/applications/results` to check the final state of many partner's applications. Partner MAY fill in other search attributes. All applications matching the search criteria are returned in the response. There are 3 search attributes:
-+ `applicationCreatedDateFrom` - Search attribute for date of creation of application. Only applications created on or after that date will be included in the result. If not provided, 7 days before the actual date is used.
-+ `applicationCreatedDateTo` - Search attribute for date of creation of application. Only applications created on or before that date will be included in the result. If not provided, the actual date is used.
-+ `onlyFinishedApplications` - Search attribute for the inclusion of finished applications only. If not provided, `false` is used.
++ `createdFrom` - Search attribute for date of creation of application. Only applications created on or after that date will be included in the result. If not provided, 7 days before the actual date is used.
++ `createdTo` - Search attribute for date of creation of application. Only applications created on or before that date will be included in the result. If not provided, the actual date is used.
++ `onlyFinished` - Search attribute for the inclusion of finished applications only. If not provided, `false` is used.
 
 If the request was successfully processed, partner receives HTTP status code 200.
 
@@ -367,9 +367,9 @@ In other cases, partner receives one of the following errors:
   | 500         | INTERNAL_SERVER_ERROR | Unexpected condition was encountered and no more specific message is suitable    |
 
 + Parameters
-    + applicationCreatedDateFrom (string, optional, `2020-01-10`) - Search attribute for date of creation of application. Only applications created on or after that date will be included in the result. If not provided, 7 days before the actual date is used.
-    + applicationCreatedDateTo (string, optional, `2020-01-12`) - Search attribute for date of creation of application. Only applications created on or before that date will be included in the result. If not provided, the actual date is used.
-    + onlyFinishedApplications (boolean, optional, `true`) - Search attribute for the inclusion of finished applications only. If not provided, `false` is used.
+      + createdFrom (string, optional, `2020-01-10`) - Search attribute for date of creation of application. Only applications created on or after that date will be included in the result. If not provided, 7 days before the actual date is used.
+      + createdTo (string, optional, `2020-01-12`) - Search attribute for date of creation of application. Only applications created on or before that date will be included in the result. If not provided, the actual date is used.
+      + onlyFinished (boolean, optional, `true`) - Search attribute for the inclusion of finished applications only. If not provided, `false` is used.
 
 ### Get process results of group of applications [GET]
 
