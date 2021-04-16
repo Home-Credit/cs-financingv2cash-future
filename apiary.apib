@@ -4,11 +4,11 @@ HOST: https://api.homecredit.cz
 # Home Credit - Partner API - CASH - Future version
 API documentation for Home Credit API for partners (next release documentation).
 
-Version on documentation: 2.3.1(03/2021)
+Version on documentation: 2.3.1(04/2021)
 
 | Version        | Release | Release date | News |
 | ---            | ---     | ---          | ---  |
-| 2.3.1 (03/2021) | CS78    | 17.3.2021    | New [calculation resource](#reference/calculation-resources) |
+| 2.3.1 (04/2021) | CS79    | 26.4.2021    | New [calculation resource](#reference/calculation-resources) |
 | 2.2.1 (08/2020) | CS71    | 18.8.2020    | New resources for getting [application process results](#reference/application-resources/process-result-of-single-application) |
 | 2.1.1 | CS64    | 10.3.2020    | Initial version |
 
@@ -529,12 +529,12 @@ Notify partner about change in the application process.
 
 ## CashBase(object)
 + amount (Amount, optional) - Preferred amount client's want to borrow. MAY be provided, if not provided, the default amount would be offered.
-+ financing (CashFinancing, required) - Information about the form of financing CASH application (for example Close-end Loan, Revolving Loan, etc.).
++ financing (CashFinancing, required) - Information about the form of financing `CASH` application (for example Close-end Loan, Revolving Loan, etc.).
 
 ## CashFinancing(object)
-+ type (enum, required) - Financing type suitable for CASH application.
++ type (enum, required) - Financing type suitable for `CASH` application.
     + `LOAN_WALLET` - Revolving loan used specifically for lending money (usually not suitable for shopping purposes).
-+ loanWallet (SettingsLoanWallet,  required) - Settings for LOAN_WALLET Financing type. REQUIRED for LOAN_WALLET financing type
++ loanWallet (SettingsLoanWallet,  required) - Settings for `LOAN_WALLET` Financing type. REQUIRED for `LOAN_WALLET` financing type
 
 
 ## SettingsLoanWallet(object)
@@ -554,7 +554,7 @@ SHOULD be valid in combination with attributes `cash.amount` and `preferredInsta
 ## OriginationChannel(object)
 + type (enum, required) - Type of origination channel
     + `ONLINE` - Client handles the whole application himself online without any partner's employees interference (for example client's purchase in eshop)
-+ online (MerchantURLs,  required) - Collection of partner's URLs used for redirection of a client back to a partner website or as a notification endpoint. REQUIRED for ONLINE channel type
++ online (MerchantURLs,  required) - Collection of partner's URLs used for redirection of a client back to a partner website or as a notification endpoint. REQUIRED for `ONLINE` channel type
 
 
 ## MerchantURLs(object)
@@ -591,17 +591,17 @@ SHOULD be valid in combination with attributes `cash.amount` and `preferredInsta
 ## CalculateOffersRequest (object)
 + type (enum, required) - Financed subject type
   + `CASH` - Loan without any specific purpose
-+ cash (CashCalculateOffers, required) - Information about client's financial requirements. REQUIRED for CASH type of Financed subject.
++ cash (CashCalculateOffers, required) - Information about client's financial requirements. REQUIRED for `CASH` type of Financed subject.
 
 ## CashCalculateOffers (object)
 + amount (Amount, required) - Preferred amount clients want to lend. MAY be provided; if not provided, the maximum possible amount would be offered to the client.
-+ financing (CashFinancing, required) - Information about form of financing CASH application (for example Close-end Loan, Revolving Loan, etc.).
++ financing (CashFinancing, required) - Information about form of financing `CASH` application (for example Close-end Loan, Revolving Loan, etc.).
 
 
 ## CalculateOffersResponse (object)
 + type (enum, required) - Financing type suitable for CASH application.
     + `LOAN_WALLET` - Revolving loan used specifically for lending money (usually not suitable for shopping purposes).
-+ loanWallet (LoanWalletOffer,  required) - Settings for LOAN_WALLET Financing type. REQUIRED for LOAN_WALLET financing type
++ loanWallet (LoanWalletOffer,  required) - Settings for `LOAN_WALLET` Financing type. REQUIRED for `LOAN_WALLET` financing type
 
 ## WalletOffer (object)
 + productCode: `HCONLESHOP` (string, required) - Product offer code
@@ -614,8 +614,15 @@ SHOULD be valid in combination with attributes `cash.amount` and `preferredInsta
 + repaymentExamples (array[RepaymentExample],fixed-type,optional) - Examples of debt repayement for flexible product with variable end (with various installments)
 
 ## AvailableCreditAmount (object)
++ type: `FIXED` (enum, required) - Credit amount can be fixed for particular amount or variable
+  + `FIXED` - Fixed amount
+  + `VARIABLE` - Variable amount
++ fixed (Amount, optional) - REQUIRED for `FIXED` type of credit amount
++ variable (VariableCreditAmount, optional) - REQUIRED for `VARIABLE` type of credit amount
+
+## VariableCreditAmount (object)
 + minimum (Amount, required) - Minimal available credit amount
-+ maximum (Amount, required) - Maximal available credit amount. It may be the same as the minimal available credit amount
++ maximum (Amount, required) - Maximal available credit amount
 
 ## CalculationDetail (object)
 + installment (Amount, required) - Value of monthly installment. Approximated for product offers with variable end
