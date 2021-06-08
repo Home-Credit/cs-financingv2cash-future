@@ -519,7 +519,7 @@ Notify partner about change in the application process.
 + `email`: `john.newborn@country.com` (string, optional) - E-mail address of customer. MUST be valid email according to [RFC 2822](https://tools.ietf.org/html/rfc2822).
 + `phone`: `+420777123456` (string, optional) - Phone number with country code (including leading `+`). Phone number SHOULD be 13 characters long (with country code). The phone number itself without country code SHOULD begin with digit `6` or `7` (for CZ) or with `9x` where `x` is different from `6` (for SK)
 + `addresses` (array[Address], fixed-type, optional) - Addresses.
-+ identificationNumber: `890619/5723` (string, optional) - Client's identification number (actually birth number). SHOULD be valid according to the legislation currently in effect.
++ identificationNumber: `890619/5723` (string, optional) - Client's identification number (actually birth number). SHOULD be valid according to the legislation currently in effect. Client MUST be at least 18 years old.
 + `tin`: `12333321` (string, optional) - Tax identification number (ICO). String values longer than 10 characters will be shortened to 10 characters.
 + ipAddress: `172.10.10.1` (string, optional) - IPv4 or IPv6 address of a customer.
 + fingerprintComponents (KeyValue, optional) - Fingerprints components.
