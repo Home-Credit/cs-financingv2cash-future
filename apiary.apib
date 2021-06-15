@@ -618,7 +618,7 @@ SHOULD be valid in combination with attributes `cash.amount` and `preferredInsta
 + cash (CashCalculateOffers, required) - Information about client's financial requirements. REQUIRED for `CASH` type of Financed subject.
 
 ## CashCalculateOffers (object)
-+ amount (Amount, required) - Preferred amount clients want to lend. MAY be provided; if not provided, the maximum possible amount would be offered to the client.
++ amount (Amount, optional) - Preferred amount clients want to lend. MAY be provided; if not provided, the maximum possible amount would be offered to the client.
 + financing (CashFinancing, required) - Information about form of financing `CASH` application (for example Close-end Loan, Revolving Loan, etc.).
 
 
