@@ -4,10 +4,11 @@ HOST: https://api.homecredit.cz
 # Home Credit - Partner API - CASH - Future version
 API documentation for Home Credit API for partners (next release documentation).
 
-> Version of documentation: 2.4.1(06/2021)
+Version on documentation: 2.5.1(03/2022)
 
 | Version        | Release | Release date | News |
 | ---            | ---     | ---          | ---  |
+| 2.5.1 (03/2022) | CS90    | 16.3.2022    | Validations of Addresses in CreateApplication have been made more flexible: all attributes (`streetNumber`, `streetAddress` etc.) were changed from required to optional |
 | 2.4.1 (06/2021) | CS81    | 9.6.2021    | New option for completion of client's application: over the phone. See [create application resource](#reference/application-resources/create-application) for more details |
 | 2.3.1 (04/2021) | CS79    | 26.4.2021    | New [calculation resource](#reference/calculation-resources) |
 | 2.2.1 (08/2020) | CS71    | 18.8.2020    | New resources for getting [application process results](#reference/application-resources/process-result-of-single-application) |
@@ -274,7 +275,7 @@ Use `/financing/v2/applications` resource with the properly filled request that 
 
 There are two options for completing client's application: online or over the phone. During online completion process (channel type `ONLINE`) the client fills out the entire application himself, selects the product he is interested in and then signs the contract online. During process over the phone (channel type `PHONE`), the client waits for a Home Credit operator to call him and guide him through the same process without the need to be online.
 
-> **IMPORTANT NOTE:** `PHONE` process of completion is different from `ONLINE` in terms of the client's personal data. For `PHONE` process partner MUST provide following personal data and they MUST be valid: `firstName`, `lastName`, `email`, `phone`, `identificationNumber`. Validation rules for `ONLINE` process are not so strict therefore it is possible to create application even without any personal data at all. You may find specifications of validations in particular attributes' description.
+> **IMPORTANT NOTE:** `PHONE` process of completion is different from `ONLINE` in terms of the client's personal data. For `PHONE` process partner MUST provide following personal data and they MUST be valid: `firstName`, `lastName`, `email`, `phone`, `identificationNumber`. Validation rules for `ONLINE` process are more flexible therefore it is possible to create application even without any personal data at all. You may find specifications of validations in particular attributes' description.
 
 If the request was successfully processed, partner receives HTTP status code 201 and `Application` object with at least the following information in the response:
 - Application unique ID
@@ -505,9 +506,9 @@ Notify partner about change in the application process.
 + financedSubject (FinancedSubjectBase, required) - Subject of financing (for example IPhone purchase, loan for 20 000 CZK ...)
 
 ## ApplicationCustomer(object)
-+ `firstName`: `John` (string, optional) -  Customer first (given) name. Name SHOULD follow regular expression `^[A-ZÁ-Ž]'?[- \u00A0a-zA-Zá-žÁ-Ž]*[a-zA-Zá-žÁ-Ž]$`, SHOULD be 2 to 30 characters long and characters SHOULD come from the `ISO 8859-2` character set.
-+ `lastName`: `Newborn` (string, optional) - Customer last (family) name. Name SHOULD follow regular expression `^[A-ZÁ-Ž]'?[- \u00A0a-zA-Zá-žÁ-Ž]*[a-zA-Zá-žÁ-Ž]$`,SHOULD be 2 to 30 characters long and characters SHOULD come from the `ISO 8859-2` character set.
-+ `fullName`: `Ing. John Newborn, Csc.` (string, optional) - Customer full name, including academical degrees and salutation. Attribute `fullName` is parsed (and eventually shortened) into `firstName` and `lastName`; `fullName` is never returned in response. In case all three atributes are provided, `fullName` is discarded. Full name SHOULD be no longer than 100 characters and characters SHOULD come from the `ISO 8859-2` character set
++ `firstName`: `John` (string, optional) -  Customer first (given) name. Name SHOULD follow regular expression `^[A-ZÁ-Ž]'?[- \u00A0a-zA-Zá-žÁ-Ž]*[a-zA-Zá-žÁ-Ž]$`, SHOULD be 2 to 30 characters long and characters SHOULD be in the `ISO 8859-2` character set.
++ `lastName`: `Newborn` (string, optional) - Customer last (family) name. Name SHOULD follow regular expression `^[A-ZÁ-Ž]'?[- \u00A0a-zA-Zá-žÁ-Ž]*[a-zA-Zá-žÁ-Ž]$`,SHOULD be 2 to 30 characters long and characters SHOULD be in the `ISO 8859-2` character set.
++ `fullName`: `Ing. John Newborn, Csc.` (string, optional) - Customer full name, including academical degrees and salutation. Attribute `fullName` is parsed (and eventually shortened) into `firstName` and `lastName`; `fullName` is never returned in response. In case all three atributes are provided, `fullName` is discarded. Full name SHOULD be no longer than 100 characters and characters SHOULD be in the `ISO 8859-2` character set
 + `email`: `john.newborn@country.com` (string, optional) - E-mail address of customer. MUST be valid email according to [RFC 2822](https://tools.ietf.org/html/rfc2822).
 + `phone`: `+420777123456` (string, optional) - Phone number with country code (including leading `+`). Phone number SHOULD be 13 characters long (with country code). The phone number itself without country code SHOULD begin with digit `6` or `7` (for CZ) or with `9x` where `x` is different from `6` (for SK)
 + `addresses` (array[Address], fixed-type, optional) - Addresses.
@@ -518,11 +519,11 @@ Notify partner about change in the application process.
 
 
 ## Address(object)
-+ `city`: `Prague` (string, required) - City. String values longer than 100 characters will be shortened to 100 characters.
-+ `streetAddress`: `Letenská` (string, required) - Street/city part. String values longer than 100 characters will be shortened to 100 characters.
-+ `streetNumber`: `22` (string, required) - Street number. String values longer than 50 characters will be shortened to 50 characters.
-+ `zip`: `140 00` (string, required) - Postal code. String values longer than 10 characters will be shortened to 10 characters.
-+ `flags` (array[AddressFlag], fixed-type,  required) - Types of the address.
++ `city`: `Prague` (string, optional) - City. String values longer than 100 characters will be shortened to 100 characters.
++ `streetAddress`: `Letenská` (string, optional) - Street/city part. String values longer than 100 characters will be shortened to 100 characters.
++ `streetNumber`: `22` (string, optional) - Street number. String values longer than 50 characters will be shortened to 50 characters.
++ `zip`: `140 00` (string, optional) - Postal code. String values longer than 10 characters will be shortened to 10 characters.
++ `flags` (array[AddressFlag], fixed-type,  optional) - Types of the address.
 
 ## AddressFlag(enum)
 + `PERMANENT` - Permanent residential address
