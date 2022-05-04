@@ -535,9 +535,8 @@ Notify partner about change in the application process.
 + type (enum, required) - Financed subject type
   + `CASH` - Loan without any specific purpose
   + `LIABILITY` - Specific loan used for consolidation of client's loans and liabilities
-+ One Of
-  + cash (CashBase, required) - Information about client's financial requirements. REQUIRED for `CASH` type of Financed subject.
-  + liability (LiabilityBase, required) - Information about client's financial requirements. REQUIRED for `LIABILITY` type of Financed subject.
++ cash (CashBase, optional) - Information about client's financial requirements. REQUIRED for `CASH` type of Financed subject.
++ liability (LiabilityBase, optional) - Information about client's financial requirements. REQUIRED for `LIABILITY` type of Financed subject.
 
 
 ## CashBase(object)
@@ -802,9 +801,8 @@ Detail of result of the application approval process
 + type (enum, required) - Account type
     + `IBAN`
     + `NATIONAL`
-+ One Of
-    + iban (AccountIBAN, required) - Bank account number in IBAN format
-    + national (AccountNational, required) - Bank account number in national format.
++ iban (AccountIBAN, optional) - Bank account number in IBAN format. REQUIRED for `IBAN` type
++ national (AccountNational, optional) - Bank account number in national format. REQUIRED for `NATIONAL` type
 
 ## AccountIBAN (object)
 + iban: `CZ6508000000192000145399` (string, required) - Account number in IBAN format
