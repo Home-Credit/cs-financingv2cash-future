@@ -178,7 +178,7 @@ There are 3 levels of error severity:
 #### Errors overview
 | Status code | Code                  | Explanation                                                                     | Message                                                                                                        |
 | ---         | ---                   | ---                                                                             | ---                                                                                                            |
-| 400         | INVALID_REQUEST       | Request was not well formatted (malformed request syntax, size too large, etc.) | (*Various messages possible*) e.g. Unsupported combination of application and cash status                 |
+| 400         | INVALID_REQUEST       | Request was not well formatted (malformed request syntax, size too large, etc.) | (*Various messages possible*) e.g. Unsupported combination of application and financed subject status                 |
 | 404         | OBJECT_NOT_FOUND      | The requested resource could not be found                                       | (*Various messages possible*) e.g. Specified object was not found                                              |
 | 422         | NOT_ALLOWED           | Operation is not allowed (internal reason)                                      | (*Various messages possible*) e.g. Not allowed (other reason)                                                    |
 | 500         | INTERNAL_SERVER_ERROR | Unexpected condition was encountered and no more specific message is suitable   | (*Various messages possible*) e.g. Failed to parse given JSON                                                  |
@@ -282,18 +282,19 @@ If the request was successfully processed, partner receives HTTP status code 201
 - Application unique ID
 - Application status
 
-Before new application is created system checks if the application is not **duplicate**. The system behaves differently according to subject type:
-
-- application with `CASH` or `LIABILITY` financed subject type is considered duplicate if the request contains `ApplicationRequest.customer.identificationNumber` and application of customer with the same identification number and same financed subject already exists. If the request is considered **duplicate** following will happen:
+Before new application is created system checks if the application is not **duplicate**. Application is considered duplicate if the request contains `ApplicationRequest.customer.identificationNumber` and application with the same identification number and financed subject already exists. If the request is considered **duplicate** following will happen:
   - if the previous `Application` is canceled (`Application.status = CANCELLED`), the new `Application` is created and partner receives new `applicationId`. Response HTTP status code is 201
   - if previous `Application` was just created (i.e. without any recorded action by the client), new `Application` is not created, partner receives `applicationId` of previously created application. Response HTTP status code is 200 ("double-click protection")
   - if previous `Application` is already in the application process, partner receives HTTP status code 422 with error code `DUPLICATE_APPLICATION`
+
+
 
 In case of an error, partner receives one of the following results:
 | Status code | Code                   | Explanation                                                                     |
 | ---         | ---                    | ---                                                                             |
 | 400         | INVALID_REQUEST        | Request was not well-formatted (malformed request syntax, size too large, etc.) |
 | 422         | UNPROCESSABLE          | Request was well-formed but was unable to be followed due to semantic errors    |
+| 422         | DUPLICATE_APPLICATION | Creating of Application with duplicated Order number is not allowed             |
 | 500         | INTERNAL_SERVER_ERROR  | Unexpected condition was encountered and no more specific message is suitable   |
 
 
@@ -398,7 +399,7 @@ Partner uses this resource to calculate the appropriate product. To perform the 
 - method of financing
 
 The partner may choose product set from which the offers will be calculated. If none is provided, the default product set for the selected financing method is used.
-If the client has already chosen the product or the amount of the installment that he would like to repay, he can also state this in reqeust.
+If the client has already chosen the product or the amount of the installment that he would like to repay, he can also state that in reqeust.
 
 The response returns a collection of products that meet the input, for each product returns the amount of the credit amount, a set of financial parameters (minimum installment, interest rate, etc.) and for variable products several examples of repayment with different installments.
 
