@@ -431,7 +431,6 @@ calculateOffers
 + 'businessIdentificationNumber': `123456854` (string, optional) - Company's identification number (known as IČO).
 + ipAddress: `172.10.10.1` (string, optional) - IPv4 or IPv6 address of a customer.
 + fingerprintComponents (KeyValue, optional) - Fingerprints components.
-+ extraData (FinancingCustomerExtraData, optional) - Additional customer data, that may improve the approval probability.
 
 ## FinancedSubjectBase(object)
 + type (enum, required) - Financed subject type
@@ -608,7 +607,7 @@ SHOULD be valid in combination with attributes `liability.amount` and `installme
 Precheck data.
 
 ### Properties
-+ customer (ApplicationCustomer, required) - Customer data
++ customer (FinancingApplicationCustomer, required) - Customer data
   + `firstName`: `John` (string, optional) -  Customer first (given) name. String values longer than 100 characters will be shortened to 100 characters. One of `firstName` and `fullName` is REQUIRED.
   + `lastName`: `Newborn` (string, optional) - Customer last (family) name. String values   longer than 100 characters will be shortened to 100 characters.  One of `lastName` and `fullName` is REQUIRED.
 + financedSubject (PrecheckFinancedSubject, required) - Subject of financing (for example IPhone purchase, loan for 20 000 CZK ...)
@@ -625,7 +624,7 @@ Precheck result.
 ### Properties
 + `id`: `1234` (string, optional) - Unique identifier of Precheck. Send this identificator in ApplicationRequest for a better approval rate. The Id is sometimes not provided (for example if precheck ends with a result `TIME_OUT`)
 + `recommendation`:`false`  (boolean, required) - A recommendation of whether the application should be created.
-    true = Application is likely going to be approved.
+    true = Application is likely going to be approved.
     false = Application is likely going to be rejected.
 + `result`: `false`  (enum, required) - A detailed result of precheck.
     + `NEW_CONTRACT` - The client will likely create and sign a new contract
@@ -722,10 +721,6 @@ Detail of result of the application approval process
 
 ## PhoneNumber (object)
 + number: `+420123456789` (string, required) - Phone number (including country code)
-
-## Email (object)
-+ address: `darth.vader@empire.sw` (string, required) - Email address
-
 
 ## PartnerLogin (object)
 Partner login credentials
