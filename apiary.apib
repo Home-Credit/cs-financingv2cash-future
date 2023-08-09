@@ -4,16 +4,11 @@ HOST: https://api.homecredit.cz
 # Home Credit - Partner API - CASH and LIABILITY - Future
 API documentation for Home Credit API for partners (next release documentation).
 
-Version of documentation: 2.6.1 (04/2022)
+Version of documentation: 3.1.1 (08/2023)
 
 | Version        | Release | Release date | News |
 | ---            | ---     | ---          | ---  |
-| 2.6.1 (04/2022) | CS91    | 14.4.2022    | New type of financed subject 'LIABILITY' added (calculation and create application resources) |
-| 2.5.1 (03/2022) | CS90    | 16.3.2022    | Validations of Addresses in CreateApplication have been made more flexible: all attributes (`streetNumber`, `streetAddress` etc.) were changed from required to optional |
-| 2.4.1 (06/2021) | CS81    | 9.6.2021    | New option for completion of client's application: over the phone. See [create application resource](#reference/application-resources/create-application) for more details |
-| 2.3.1 (04/2021) | CS79    | 26.4.2021    | New [calculation resource](#reference/calculation-resources) |
-| 2.2.1 (08/2020) | CS71    | 18.8.2020    | New resources for getting [application process results](#reference/application-resources/process-result-of-single-application) |
-| 2.1.1 | CS64    | 10.3.2020    | Initial version |
+| 3.1.1 (08/2023) | CS108    | 29.8.2023  | New version of API |
 
 
 ## Getting started
@@ -56,7 +51,7 @@ During redirection of the customer from Home Credit's front-end application back
 
 - e.g. `http://partnereshop.cz?&applicationId=123e4567-e89b-12d3-a456-426655440000&applicationStatus=CONFIRMED&cashStatus=PAID&checkSum=443E150D3406F6A8DC62C1DB224AFDD84FA9907071BB1AD9B2C7701031793662191501B26AADF3A31361341EA176C80B23D8A9A5E5B5219538289945FE0C20A7`
 
-> **IMPORTANT NOTE:** Resource calls made from **Slovakia** MUST use appropriate dedicated `.sk` endpoints. E.g. `https://api.homecredit.sk/financning/v2/applications`
+> **IMPORTANT NOTE:** Resource calls made from **Slovakia** MUST use appropriate dedicated `.sk` endpoints. E.g. `https://api.homecredit.sk/financing/v3/applications`
 
 
 ## Documentation principles
@@ -69,6 +64,7 @@ During redirection of the customer from Home Credit's front-end application back
 - we use camelCase for all object and attribute names
 - we use CAPITAL_UNDERSCORE for enum values
 - we use plural in resource names
+
 
 ### Key words used in this document (RFC 2119)
 
@@ -264,19 +260,20 @@ Partner authenticate himself and obtain acces token
 # Group Application resources
 Services that allow the processing of *application* during its whole lifecycle.
 
-## Create application [/financing/v2/applications]
+## Create application [/financing/v3/applications]
 The elementary flow starts when the customer is interested in some of Home Credit's product.
 
-Use `/financing/v2/applications` resource with the properly filled request that contains at least the following data
+Use `/financing/v3/applications` resource with the properly filled request that contains at least the following data
+- Type of customer MUST be defined
 - Customer's personal data (MAY be ommited for `ONLINE` process - see below)
-- The financed subject of the application (purchase of goods or cash)
+- The financed subject of the application (cash or liability)
 - Context information necessary for the continuation and completion of the process
   - Channel type (`ONLINE` or `PHONE`)
   - Channel data
 
-There are two options for completing client's application: online or over the phone. During online completion process (channel type `ONLINE`) the client fills out the entire application himself, selects the product he is interested in and then signs the contract online. During process over the phone (channel type `PHONE`), the client waits for a Home Credit operator to call him and guide him through the same process without the need to be online.
+There are two options for completing customer's application: online or over the phone. During online completion process (channel type `ONLINE`) the customer fills out the entire application himself, selects the product he is interested in and then signs the contract online. During process over the phone (channel type `PHONE`), the customer waits for a Home Credit operator to call him and guide him through the same process without the need to be online.
 
-> **IMPORTANT NOTE:** `PHONE` process of completion is different from `ONLINE` in terms of the client's personal data. For `PHONE` process partner MUST provide following personal data and they MUST be valid: `firstName`, `lastName`, `email`, `phone`, `identificationNumber`. Validation rules for `ONLINE` process are more flexible therefore it is possible to create application even without any personal data at all. You will find specifications of validations in particular attributes' description.
+> **IMPORTANT NOTE:** `PHONE` process of completion is different from `ONLINE` in terms of the customer's personal data. "PHONE" process is allowed only for customer type `PERSON`. For `PHONE` process partner MUST provide following personal data and they MUST be valid: `firstName`, `lastName`, `email`, `phone`, `identificationNumber`. Validation rules for `ONLINE` process are more flexible therefore it is possible to create application even without any personal data at all. You will find specifications of validations in particular attributes' description.
 
 If the request was successfully processed, partner receives HTTP status code 201 and `Application` object with at least the following information in the response:
 - Application unique ID
@@ -284,7 +281,7 @@ If the request was successfully processed, partner receives HTTP status code 201
 
 Before new application is created system checks if the application is not **duplicate**. Application is considered duplicate if the request contains `ApplicationRequest.customer.identificationNumber` and application with the same identification number and financed subject already exists. If the request is considered **duplicate** following will happen:
   - if the previous `Application` is canceled (`Application.status = CANCELLED`), the new `Application` is created and partner receives new `applicationId`. Response HTTP status code is 201
-  - if previous `Application` was just created (i.e. without any recorded action by the client), new `Application` is not created, partner receives `applicationId` of previously created application. Response HTTP status code is 200 ("double-click protection")
+  - if previous `Application` was just created (i.e. without any recorded action by the customer), new `Application` is not created, partner receives `applicationId` of previously created application. Response HTTP status code is 200 ("double-click protection")
   - if previous `Application` is already in the application process, partner receives HTTP status code 422 with error code `DUPLICATE_APPLICATION`
 
 
@@ -296,6 +293,7 @@ In case of an error, partner receives one of the following results:
 | 422         | UNPROCESSABLE          | Request was well-formed but was unable to be followed due to semantic errors    |
 | 422         | DUPLICATE_APPLICATION | Creating of Application with duplicated Order number is not allowed             |
 | 500         | INTERNAL_SERVER_ERROR  | Unexpected condition was encountered and no more specific message is suitable   |
+
 
 
 ### Create application [POST]
@@ -333,77 +331,21 @@ Create a new *application*
     + Attributes (Errors)
 
 
-## Process result of single application [/financing/v2/applications/{applicationId}/results]
-Partner may use resource `/financing/v2/applications/{applicationId}/results` to check the final status of single partner's application.
-
-If the request was successfully processed, partner receives HTTP status code 200.
-
-In other cases, partner receives one of the following errors:
-  | Status code | Code                  | Explanation                                                                      |
-  | ---         | ---                   | ---                                                                              |
-  | 400         | INVALID_REQUEST       | Request was not well formatted (malformed request syntax, size too large, etc.)  |
-  | 500         | INTERNAL_SERVER_ERROR | Unexpected condition was encountered and no more specific message is suitable    |
-
-  + Parameters
-      + applicationId (string, optional, `123e4567-e89b-12d3-a456-426655440000`) - Primary identifier of the application.
-
-### Get result of application process [GET]
-
-+ Response 200(application/json;charset=UTF-8)
-
-    + Attributes (ApplicationResult)
-
-
-+ Response 400(application/json;charset=UTF-8)
-
-    + Attributes (Errors)
-
-
-## Process result of group of applications [/financing/v2/applications/results{?createdFrom,createdTo,onlyFinished}]
-Partner may use resource `/financing/v2/applications/results` to check the final status of many partner's applications. Partner MAY fill in other search attributes. All applications matching the search criteria are returned in the response. There are 3 search attributes:
-+ `createdFrom` - Search attribute for date of creation of application. Only applications created on or after that date will be included in the result. If not provided, 7 days before the actual date is used.
-+ `createdTo` - Search attribute for date of creation of application. Only applications created on or before that date will be included in the result. If not provided, the actual date is used.
-+ `onlyFinished` - Search attribute for the inclusion of finished applications only. If not provided, `false` is used.
-
-If the request was successfully processed, partner receives HTTP status code 200.
-
-In other cases, partner receives one of the following errors:
-  | Status code | Code                  | Explanation                                                                      |
-  | ---         | ---                   | ---                                                                              |
-  | 400         | INVALID_REQUEST       | Request was not well formatted (malformed request syntax, size too large, etc.)  |
-  | 500         | INTERNAL_SERVER_ERROR | Unexpected condition was encountered and no more specific message is suitable    |
-
-  + Parameters
-      + createdFrom (string, optional, `2020-01-10`) - Search attribute for date of creation of application. Only applications created on or after that date will be included in the result. If not provided, 7 days before the actual date is used.
-      + createdTo (string, optional, `2020-01-12`) - Search attribute for date of creation of application. Only applications created on or before that date will be included in the result. If not provided, the actual date is used.
-      + onlyFinished (boolean, optional, `true`) - Search attribute for the inclusion of finished applications only. If not provided, `false` is used.
-
-### Get process results of group of applications [GET]
-
-+ Response 200(application/json;charset=UTF-8)
-
-    + Attributes (GetApplicationsResults)
-
-
-+ Response 400(application/json;charset=UTF-8)
-
-    + Attributes (Errors)
-
-
 # Group Calculation resources
 
-## Financing offers [/v2/financedSubject/financing/offers]
+## Financing offers [/v3/products/offers]
 Partner uses this resource to calculate the appropriate product. To perform the calculation, it is necessary to provide at least the following data:
-- the amount the client wants to borrow
+- type of customer
+- the amount the customer wants to borrow
 - financed subject
 - method of financing
 
-The partner may choose product set from which the offers will be calculated. If none is provided, the default product set for the selected financing method is used.
-If the client has already chosen the product or the amount of the installment that he would like to repay, he can also state that in reqeust.
+The partner may choose product set from which the products will be calculated. If none is provided, the default product set for the selected financing method is used.
+If the customer has already chosen the product or the amount of the installment that he would like to repay, he can also state that in reqeust.
 
 The response returns a collection of products that meet the input, for each product returns the amount of the credit amount, a set of financial parameters (minimum installment, interest rate, etc.) and for variable products several examples of repayment with different installments.
 
-One product is labeled as favourite product which is the most suitable for the client.
+One product is labeled as favourite product which is the most suitable for the customer.
 
 Possible error codes explanation:
 | Status code | Code                | Explanation                                                                     |
@@ -418,7 +360,7 @@ Possible error codes explanation:
 
 + Response 200 (application/json;charset=UTF-8)
 calculateOffers
-    + Attributes (array[CalculateOffersResponse])
+  + Attributes (array[CalculateOffersResponse])
 
 
 + Response 400(application/json;charset=UTF-8)
@@ -426,96 +368,32 @@ calculateOffers
     + Attributes (Errors)
 
 
-# Group Scoring resources
-Services that allow partners to find out a probability of *application's* approval.
-
-## Precheck [/financing/v2/scorings/precheck]
-Simple operation for customer preliminary scoring. Returns suitability of a particular customer for financing services. It is best suitable for identifying clients who will probably be rejected. Take into account that positive recommendation can not guarantee customer's approval (it is not the main scoring) as the result is based on only a few elementary pieces of information about the customer.
-
-The resource has to be called with a valid access token (see the [Security section](#reference/security)) from partner's server.
-
-Possible error codes explanation:
-| Status code | Code                | Explanation                                                                     |
-| ---         | ---                 | ---                                                                             |
-| 400         | INVALID_REQUEST     | Request was not well formatted (malformed request syntax, size too large, etc.) |
-| 500         | FAILURE             | Internal failure                                                                |
-
-### Run precheck [POST]
-
-+ Request (application/json;charset=UTF-8)
-    + Attributes (PrecheckRequest)
-
-
-+ Response 200(application/json;charset=UTF-8)
-
-    + Attributes (PrecheckResult)
-
-
-+ Response 400(application/json;charset=UTF-8)
-        Error in processing request
-
-    + Attributes (Errors)
-
-
-# Group Merchantsite resources
-Services that should be developed and exposed by partner to allow Home Credit asynchronously inform partner about important changes regarding particular *applications*
-
-> **ATTENTION:** This set of APIs should be developed by the partner and accept calls specified below.
-This option is an alternative to `GET /financing/v2/applications/results`. Any or both of these options may be used.
--->
-
-
-## Application notification [/partner/notification/endpoint]
-This resource is used to inform partner about important changes within particular *application*. Namely in following situations:
-
-| Trigger                                                             | Corresponding `Application.status` | Corresponding `Application.financedSubject.cash.status`  |
-| ---                                                                 | ---                                | ---                                                      |
-| Application was approved (approval process is proceeding correctly) | APPROVED                           | IN_PROCESS                                               |
-| Application was rejected                                            | REJECTED                           | CANCELLED                                                |
-| Application was cancelled                                           | CANCELLED                          | CANCELLED                                                |
-
-Request is filled with at least following information:
-- Application unique ID
-- Application status
-- Time of a triggering `Application.status` change
-- Notification sequence number
-- Notification dispatch time
-- Hashed message (checksum) - used to verify data integrity and data authenticity
-
-<!--
-> USEFUL NOTE: Partner may use `GET /financing/v2/applications/results` resource to directly find out the information about application's results.
--->
-
-### Application notification [POST]
-Notify partner about change in the application process.
-
-+ Request (application/json;charset=UTF-8)
-    + Attributes (NotificationRequest)
-
-+ Response 204
-        Notification accepted
-
-+ Response 400 (application/json;charset=UTF-8)
-
-        Can not process changes
-
 
 # Data Structures
 
 ## ApplicationRequest(object)
-+ customer (ApplicationCustomer, optional) - Customer data. If known, customer data MAY be included for a smoother approval process.
-+ originationContext (OriginationContextRequest, required) - Additional information about the context of financing application origination (e.g. redirect URL back to partner site)
++ customer (FinancingApplicationCustomer, required) - Customer data. If known, customer data MAY be included for a smoother approval process for defined type of customer. This specification of type of customer is REQUIRED.
++ originationContext (FinancingOriginationContext, required) - Additional information about the context of financing application origination (e.g. redirect URL back to partner site)
 + financedSubject (FinancedSubjectBase, required) - Subject of financing (for example IPhone purchase, loan for 20 000 CZK ...)
 
-## ApplicationCustomer(object)
+## FinancingApplicationCustomerBase(object)
++ type (enum, required) - Customer type
+  + `PERSON` - Borrower that wants to use loan for individual purpose
+  + `ENTREPRENEUR` - Person who organizes, operates and assumes the risk of a business venture and wants to use loan for his business
+  + `LEGAL_ENTITY` - Company, or organization that has legal rights and obligations
+
+## FinancingApplicationCustomer(FinancingApplicationCustomerBase)
++ person (FinancingPerson, optional) - Customer data for type person that can be used for a smoother approval process. REQUIRED for `PERSON` Customer type.
++ entrepreneur (Company, optional) - Customer data for type enterpreneur that can be used for a smoother approval process. REQUIRED for `ENTREPRENEUR` Customer type.
++ legalEntity (Company, optional) - Customer data for type legalEntity that can be used for a smoother approval process. REQUIRED for `LEGAL_ENTITY` Customer type.
+
+## FinancingPerson (object)
 + `firstName`: `John` (string, optional) -  Customer first (given) name. Name SHOULD follow regular expression `^[A-ZÁ-Ž]'?[- \u00A0a-zA-Zá-žÁ-Ž]*[a-zA-Zá-žÁ-Ž]$`, SHOULD be 2 to 30 characters long and characters SHOULD be in the `ISO 8859-2` character set.
 + `lastName`: `Newborn` (string, optional) - Customer last (family) name. Name SHOULD follow regular expression `^[A-ZÁ-Ž]'?[- \u00A0a-zA-Zá-žÁ-Ž]*[a-zA-Zá-žÁ-Ž]$`,SHOULD be 2 to 30 characters long and characters SHOULD be in the `ISO 8859-2` character set.
-+ `fullName`: `Ing. John Newborn, Csc.` (string, optional) - Customer full name, including academical degrees and salutation. Attribute `fullName` is parsed (and eventually shortened) into `firstName` and `lastName`; `fullName` is never returned in response. In case all three atributes are provided, `fullName` is discarded. Full name SHOULD be no longer than 100 characters and characters SHOULD be in the `ISO 8859-2` character set
-+ `email`: `john.newborn@country.com` (string, optional) - E-mail address of customer. MUST be valid email according to [RFC 2822](https://tools.ietf.org/html/rfc2822).
-+ `phone`: `+420777123456` (string, optional) - Phone number with country code (including leading `+`). Phone number SHOULD be 13 characters long (with country code). The phone number itself without country code SHOULD begin with digit `6` or `7` (for CZ) or with `9x` where `x` is different from `6` (for SK)
++ `fullName`: `Ing. John Newborn, Csc.` (string, optional) - Customer full name, including academical degrees and salutation. Attribute `fullName` is parsed (and eventually shortened) into `firstName` and `lastName`; `fullName` is never returned in response. In case all three attributes are provided, `fullName` is discarded. Full name SHOULD be no longer than 100 characters and characters SHOULD be in the `ISO 8859-2` character set
++ contacts (array[ApplicationContact], optional) - Contacts of person.
 + `addresses` (array[Address], fixed-type, optional) - Addresses.
-+ identificationNumber: `890619/5723` (string, optional) - Client's identification number (actually birth number). SHOULD be valid according to the legislation currently in effect. Client MUST be at least 18 years old.
-+ `tin`: `12333321` (string, optional) - Tax identification number (ICO). String values longer than 10 characters will be shortened to 10 characters.
++ identificationNumber: `890619/5723` (string, optional) - Customer's identification number (actually birth number). SHOULD be valid according to the legislation currently in effect. Customer MUST be at least 18 years old.
 + ipAddress: `172.10.10.1` (string, optional) - IPv4 or IPv6 address of a customer.
 + fingerprintComponents (KeyValue, optional) - Fingerprints components.
 
@@ -531,16 +409,40 @@ Notify partner about change in the application process.
 + `PERMANENT` - Permanent residential address
 + `CONTACT` - Contact address
 
+## ApplicationContact(object)
++ type (enum, required) - Contact type
+  + `EMAIL` - Email.
+  + `MOBILE` - Mobile phone.
+  + `PHONE` - Landline phone.
++ email (Email, optional) - Email address of customer. REQUIRED for `EMAIL` Contact type.
++ mobile (Phone, optional) - Number of customer's mobile phone. REQUIRED for `MOBILE_PHONE` Contact type.
++ phone (Phone, optional) - Number of customer's landline phone. REQUIRED for `PHONE` Contact type.
+
+## Email(object)
++ `value`: `john.newborn@country.com` (string, required) - E-mail address of customer. MUST be valid email according to [RFC 2822](https://tools.ietf.org/html/rfc2822).
+
+## Phone(object)
++ `countryCode`: `+420` (string, optional) - MUST be valid countryCode.
++ `value`: `777123456` (string, required) - Mobile phone number SHOULD be 9 characters long. The mobile phone number itself without country code SHOULD begin with digit `6` or `7` (for CZ) or with `9x` where `x` is different from `6` (for SK).
+
+## Company (object)
++ `businessName`: `Planeta s.r.o.` (string, optional) - Name of business company.
++ `addresses` (array[Address], fixed-type, optional) - Addresses.
++ 'businessIdentificationNumber': `123456854` (string, optional) - Company's identification number (known as IČO).
++ ipAddress: `172.10.10.1` (string, optional) - IPv4 or IPv6 address of a customer.
++ fingerprintComponents (KeyValue, optional) - Fingerprints components.
++ extraData (FinancingCustomerExtraData, optional) - Additional customer data, that may improve the approval probability.
+
 ## FinancedSubjectBase(object)
 + type (enum, required) - Financed subject type
   + `CASH` - Loan without any specific purpose
-  + `LIABILITY` - Specific loan used for consolidation of client's loans and liabilities
-+ cash (CashBase, optional) - Information about client's financial requirements. REQUIRED for `CASH` type of Financed subject.
-+ liability (LiabilityBase, optional) - Information about client's financial requirements. REQUIRED for `LIABILITY` type of Financed subject.
+  + `LIABILITY` - Specific loan used for consolidation of customer's loans and liabilities
++ cash (CashBase, optional) - Information about customer's financial requirements. REQUIRED for `CASH` type of Financed subject.
++ liability (LiabilityBase, optional) - Information about customer's financial requirements. REQUIRED for `LIABILITY` type of Financed subject.
 
 
 ## CashBase(object)
-+ amount (Amount, optional) - Preferred amount client's want to borrow. MAY be provided, if not provided, the default amount would be offered.
++ amount (Amount, optional) - Preferred amount customer's want to borrow. MAY be provided, if not provided, the default amount would be offered.
 + financing (CashFinancing, required) - Information about the form of financing `CASH` application (for example Close-end Loan, Revolving Loan, etc.).
 
 ## CashFinancing(object)
@@ -549,56 +451,56 @@ Notify partner about change in the application process.
 + loanWallet (SettingsLoanWallet,  required) - Settings for `LOAN_WALLET` Financing type. REQUIRED for `LOAN_WALLET` financing type
 
 ## SettingsLoanWallet(object)
-+ preferredInstallment (Amount,  optional) - Preferred installment amount client would like to pay in monthly installment to pay his loan (amount should be rounded to hundreds CZK/ 5 EUR).
++ preferredInstallment (Amount,  optional) - Preferred installment amount customer would like to pay in monthly installment to pay his loan (amount should be rounded to hundreds CZK/ 5 EUR).
 OPTIONAL, if not provided, a minimum installment amount would be used.
 + productSetCode: `COCONL` (string, optional) - Product set code. If chosen product is not from default product set it is RECOMMENDED to provide code of its product set.  Invalid product set is discarded.
 + productCode: `COCONL06` (string,  optional) - Product code (obtained from calculation result).
-SHOULD be valid in combination with attributes `cash.amount` and `preferredInstallment`. Invalid product is discarded and the client will choose the correct product after redirection to Home Credit's front-end application; examples of invalid settings: the product does not exist or does not support the requested credit amount.
+SHOULD be valid in combination with attributes `cash.amount` and `preferredInstallment`. Invalid product is discarded and the customer will choose the correct product after redirection to Home Credit's front-end application; examples of invalid settings: the product does not exist or does not support the requested credit amount.
 
 
 ## LiabilityBase(object)
-+ amount (Amount, optional) - Amount client's need for consolidation of his liabilities. MAY be provided, if not provided, the default amount would be offered.
++ amount (Amount, optional) - Amount customer's need for consolidation of his liabilities. MAY be provided, if not provided, the default amount would be offered.
 + financing (LiabilityFinancing, required) - Information about the form of financing `LAIBILITY` application (for example Close-end Loan, Revolving Loan, etc.).
 
 ## LiabilityFinancing(object)
 + type (enum, required) - Financing type suitable for `LIABILITY` application.
-    + `CONSOLIDATION` - Close-end loan used specifically for consolidation client's loans.
-+ consolidation (SettingsConsolidation,  required) - Settings for `CONSOLIDATION` Financing type. REQUIRED for `CONSOLIDATION` financing type
+    + `CONSOLIDATION` - Close-end loan used specifically for consolidation customer's loans.
++ consolidation (ConsolidationSettings,  required) - Settings for `CONSOLIDATION` Financing type. REQUIRED for `CONSOLIDATION` financing type
 
-## SettingsConsolidation(object)
+## ConsolidationSettings(object)
 + installment (Amount,  optional) - Installment amount for chosen product. It is RECOMMENDED to provide valid installment amount (from calculation resources)
 + productSetCode: `COCONL` (string, optional) - Product set code. If chosen product is not from default product set it is RECOMMENDED to provide code of its product set.  Invalid product set is discarded.
 + productCode: `COCONL06` (string,  optional) - Product code (obtained from calculation result).
-SHOULD be valid in combination with attributes `liability.amount` and `installment`. Invalid product is discarded and the client will choose the correct product after redirection to Home Credit's front-end application; examples of invalid settings: the product does not exist or does not fit with the installment amount.
+SHOULD be valid in combination with attributes `liability.amount` and `installment`. Invalid product is discarded and the customer will choose the correct product after redirection to Home Credit's front-end application; examples of invalid settings: the product does not exist or does not fit with the installment amount.
 
-## OriginationContextRequest(object)
+## FinancingOriginationContext(object)
 + channel (OriginationChannel, required) - Origination channel
-+ precheckIds (array[string], fixed-type, optional) - Array of all precheck ids related to this application. If partner has run Precheck operation with this Client's data he SHOULD provide precheckId into this attribute. SHOULD be valid precheckId. See Precheck operations and their's response.
++ precheckIds (array[string], fixed-type, optional) - Array of all precheck ids related to this application. If partner has run Precheck operation with this Customer's data he SHOULD provide precheckId into this attribute. SHOULD be valid precheckId. See Precheck operations and their's response.
 + sourceId: `Cash_10_2020` (string, optional) - Identifier of source or campaign of lead origin. Partner SHOULD provide valid `sourceId`
 + extendedData (array[KeyValue], fixed-type, optional) - Additional data about application origin. List of supported `keys` for `extendedData`: `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `gclid`, `fbclid`, `url`.
 
 
 ## OriginationChannel(object)
 + type (enum, required) - Type of origination channel
-    + `ONLINE` - Client handles the whole application himself online (for example client's purchase in eshop)
-    + `PHONE` - Application process is settled by the client and the operator over the phone
-+ online (MerchantURLs,  optional) - Collection of partner's URLs used for redirection of a client back to a partner website or as a notification endpoint. REQUIRED for `ONLINE` channel type
-+ phone (ChannelPhoneSettings,  optional) - Additional data REQUIRED for `PHONE` channel type
+    + `ONLINE` - Customer handles the whole application himself online (for example customer's purchase in eshop)
+    + `PHONE` - Application process is settled by the customer and the operator over the phone
++ online (MerchantURLs,  optional) - Collection of partner's URLs used for redirection of a customer back to a partner website or as a notification endpoint. REQUIRED for `ONLINE` channel type
++ phone (PhoneSettings,  optional) - Additional data REQUIRED for `PHONE` channel type
 
 
 ## MerchantURLs(object)
-+ approvedRedirect: `https://www.partnereshop.cz` (string, optional) - URL of the partner used for redirection of the client back to partner website after the application approval. MUST be a valid URL according to [RFC 3986](https://tools.ietf.org/html/rfc3986). URL SHOULD contain scheme (for example `https://`) otherwise some browsers will not redirect client correcly.  MUST NOT be longer than 1000 characters.
-+ rejectedRedirect: `https://www.partnereshop.cz/kosik` (string, optional) - URL of the partner used for redirection of the client back to partner website after application rejection. MUST be valid URL according to [RFC 3986](https://tools.ietf.org/html/rfc3986). URL SHOULD contain scheme (for example `https://`) otherwise some browsers will not redirect client correcly. MUST NOT be longer than 1000 characters.
++ approvedRedirect: `https://www.partnereshop.cz` (string, optional) - URL of the partner used for redirection of the customer back to partner website after the application approval. MUST be a valid URL according to [RFC 3986](https://tools.ietf.org/html/rfc3986). URL SHOULD contain scheme (for example `https://`) otherwise some browsers will not redirect customer correctly.  MUST NOT be longer than 1000 characters.
++ rejectedRedirect: `https://www.partnereshop.cz/kosik` (string, optional) - URL of the partner used for redirection of the customer back to partner website after application rejection. MUST be valid URL according to [RFC 3986](https://tools.ietf.org/html/rfc3986). URL SHOULD contain scheme (for example `https://`) otherwise some browsers will not redirect customer correctly. MUST NOT be longer than 1000 characters.
 + notificationEndpoint: `https://www.partnereshop.cz/order/AA234` (string, optional) - URL of the partner used as a notification endpoint for notifying partner about important updates in the application process (approval, rejection, cancellation, etc.). MUST be valid URL according to [RFC 3986](https://tools.ietf.org/html/rfc3986). URL SHOULD contain scheme (for example `https://`). MUST NOT be longer than 1000 characters.
 
-## ChannelPhoneSettings(object)
-+ callRequest (CallRequest, optional) - Specifying the request, when to call the client
+## PhoneSettings(object)
++ callRequest (CallRequest, optional) - Specifying the request, when to call the customer
 + notificationEndpoint: `https://www.partnereshop.cz/order/AA234` (string, optional) - URL of the partner used as a notification endpoint for notifying partner about important updates in the application process (approval, rejection, cancellation, etc.). MUST be valid URL according to [RFC 3986](https://tools.ietf.org/html/rfc3986). URL SHOULD contain scheme (for example `https://`). MUST NOT be longer than 1000 characters.
 
 ## CallRequest(object)
 + type (enum, required)
-    + `DATES` - The client has specified the date (or dates) and time he wants the operator to call
-+ dates (array[string], fixed-type, required) - The date (or dates) and time client wants the operator to call
+    + `DATES` - The customer has specified the date (or dates) and time he wants the operator to call
++ dates (array[string], fixed-type, required) - The date (or dates) and time customer wants the operator to call
 
 ## ApplicationBase(object)
 + id: `123e4567-e89b-12d3-a456-426655440000` (string,  required) - Primary identifier of the application
@@ -607,14 +509,13 @@ SHOULD be valid in combination with attributes `liability.amount` and `installme
     + `PRESCORED` - Preliminary approved
     + `APPROVED` - Application is approved, contract signature process is in progress
     + `VERIFICATION` - Manual review of application by Home Credit employee is in progress
-    + `ALTERNATIVE` - Alternative offered to client
-    + `CONFIRMED` - Signed by client, contract finalization by Home Credit employee is in progress
+    + `ALTERNATIVE` - Alternative offered to customer
+    + `CONFIRMED` - Signed by customer, contract finalization by Home Credit employee is in progress
     + `REJECTED`
     + `CANCELLED`
-+ workflowSteps (array[WorkflowStep], fixed-type, optional) - Collection of currently available application process actions.
++ workflowSteps (array[FinancingWorkflowStep], fixed-type, optional) - Collection of currently available application process actions.
 
-
-## WorkflowStep(object)
+## FinancingWorkflowStep(object)
 + code (enum, required) - Workflow code
     + `REDIRECT`
 + priority: 1 (number, required) - Identifier of workflow step's priority expressed as number (lowest number means highest priority)
@@ -622,27 +523,31 @@ SHOULD be valid in combination with attributes `liability.amount` and `installme
 + redirect (RedirectURL, optional) - Data for workflow step `REDIRECT`
 
 ## RedirectURL(object)
-+ gatewayRedirectUrl: `https://pujcka.homecredit.cz` (string,  required) - Gateway redirect URL. Partner SHOULD redirect the client to this address for the continuation of the application approval process.
++ gatewayRedirectUrl: `https://pujcka.homecredit.cz` (string,  required) - Gateway redirect URL. Partner SHOULD redirect the customer to this address for the continuation of the application approval process.
 
 
 ## CalculateOffersRequest (object)
++ customer (FinancingApplicationCustomerBase, required) - Customer data.
++ financedSubject (FinancedSubjectCalculateOffers, required) - Subject of financing
+
+## FinancedSubjectCalculateOffers (object)
 + type (enum, required) - Financed subject type
   + `CASH` - Loan without any specific purpose
-  + `LIABILITY` - Specific loan used for consolidation of client's loans and liabilities
-+ cash (CashCalculateOffers, required) - Information about client's financial requirements. REQUIRED for `CASH` type of Financed subject.
-+ liability (LiabilityCalculateOffers, required) - Information about client's financial requirements. REQUIRED for `LIABILITY` type of Financed subject.
+  + `LIABILITY` - Specific loan used for consolidation of customer's loans and liabilities
++ cash (CashCalculateOffers, required) - Information about customer's financial requirements. REQUIRED for `CASH` type of Financed subject.
++ liability (LiabilityCalculateOffers, required) - Information about customer's financial requirements. REQUIRED for `LIABILITY` type of Financed subject.
 
 ## CashCalculateOffers (object)
-+ amount (Amount, optional) - Preferred amount clients want to lend. MAY be provided; if not provided, the maximum possible amount would be offered to the client.
++ amount (Amount, optional) - Preferred amount customer wants to lend. MAY be provided; if not provided, the maximum possible amount would be offered to the customer.
 + financing (CashFinancing, required) - Information about form of financing `CASH` application (for example Close-end Loan, Revolving Loan, etc.).
 
 ## LiabilityCalculateOffers (object)
-+ amount (Amount, optional) - Preferred amount clients want to lend. MAY be provided; if not provided, the maximum possible amount would be offered to the client.
++ amount (Amount, optional) - Preferred amount customer wants to lend. MAY be provided; if not provided, the maximum possible amount would be offered to the customer.
 + financing (LiabilityFinancingCalculateOffers, required) - Information about form of financing `LIABILITY` application (for example Close-end Loan, Revolving Loan, etc.).
 
 ## LiabilityFinancingCalculateOffers(object)
 + type (enum, required) - Financing type suitable for `LIABILITY` application.
-    + `CONSOLIDATION` - Close-end loan used specifically for consolidation client's loans.
+    + `CONSOLIDATION` - Close-end loan used specifically for consolidation customer's loans.
 + consolidation (SettingsConsolidationCalculateOffers,  required) - Settings for `CONSOLIDATION` Financing type. REQUIRED for `CONSOLIDATION` financing type
 
 ## SettingsConsolidationCalculateOffers(object)
@@ -652,16 +557,16 @@ SHOULD be valid in combination with attributes `liability.amount` and `installme
 ## CalculateOffersResponse (object)
 + type (enum, required) - Financing type suitable for CASH application.
     + `LOAN_WALLET` - Revolving loan used specifically for lending money (usually not suitable for shopping purposes).
-    + `LIABILITY` - Specific loan used for consolidation of client's loans and liabilities
-+ loanWallet (LoanWalletOffer,  required) - Settings for `LOAN_WALLET` Financing type. REQUIRED for `LOAN_WALLET` financing type
-+ liability (ProductOffer, required) - Information about client's financial requirements. REQUIRED for `LIABILITY` type of Financed subject.
+    + `LIABILITY` - Specific loan used for consolidation of customer's loans and liabilities
++ loanWallet (LoanWalletOffer,  optional) - Settings for `LOAN_WALLET` Financing type. REQUIRED for `LOAN_WALLET` financing type
++ liability (ProductOffer, optional) - Information about customer's financial requirements. REQUIRED for `LIABILITY` type of Financed subject.
 
 ## ProductOffer (object)
 + productCode: `HCONLESHOP` (string, required) - Product offer code
 + creditAmount (AvailableCreditAmount, required) - Available credit amount of product offer
 + calculation (CalculationDetail, required) - Financial characteristics of product offer
 + flags (array[enum], fixed-type, optional) - Additional characteristics of product offer code
-  + `FAVOURITE` - Favourite product, usually the first one to offer to client
+  + `FAVOURITE` - Favourite product, usually the first one to offer to customer
 
 ## LoanWalletOffer (ProductOffer)
 + repaymentExamples (array[RepaymentExample],fixed-type,optional) - Examples of debt repayement for flexible product with variable end (with various installments)
@@ -684,17 +589,20 @@ SHOULD be valid in combination with attributes `liability.amount` and `installme
 + numberOfInstallments: 12 (number, required) - Count of installments needed to repay purchased loan. Approximated for product offers with a variable end.
 + installmentFirstDate: `2021-03-20` (string, required) - Date of first installment.
 + installmentLastDate: `2022-02-20` (string, required) - Date of last installment. Approximated for product offers with a variable end.
-+ predictedProvisionDate (string, required) - Predicted date of sending fund to client's account
++ predictedProvisionDate (string, required) - Predicted date of sending fund to customer's account
 + amountToPay (Amount, required) - Total amount will pay for the loan (including the costs)
 + installmentDay: 20 (number, required) - Day of installment
++ maturityTextForm: `3 roky a 8 měsíců` (string, required) - Text representation of maturity
+
+
 + legalLine: `Ilustrativní výpočet dle zákona: Výše úvěru 10 000 Kč, roční úroková sazba 14,88 %, RPSN 15,9 %, celkem zaplatíte 10 806 Kč. Jednotlivé po sobě jdoucí měsíční splátky: 957 Kč, 947 Kč, 937 Kč, 926 Kč, 916 Kč, 906 Kč, 895 Kč, 885 Kč, 875 Kč, 864 Kč, 854 Kč, 844 Kč. Splátky a částka, kterou celkem zaplatíte, jsou matematicky zaokrouhleny.` (string, required) - Legal example of repayment
 
 ## RepaymentExample(object)
 + installment (Amount, required) - Value of monthly installment.
 + numberOfInstallments: 12 (number, required) - Count of installments needed to repay purchased loan for chosen `installment` (approximated)
-+ amountToPay (Amount, required) - Total amount client will pay for the loan (including the costs) for chosen `installmemt` (approximated)
++ amountToPay (Amount, required) - Total amount customer will pay for the loan (including the costs) for chosen `installmemt` (approximated)
 + flags (array[enum], fixed-type, optional) - Additional characteristics of example repayment
-  + `FAVOURITE` - Favourite example, usually the first one to offer to client
+  + `FAVOURITE` - Favourite example, usually the first one to offer to customer
 
 ## PrecheckRequest(object)
 Precheck data.
