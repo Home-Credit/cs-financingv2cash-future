@@ -1,0 +1,2653 @@
+openapi: 3.0.0
+info:
+  title: Home Credit - Partner API - CASH and LIABILITY - Future
+  version: ""
+  description: >-
+    API documentation for Home Credit API for partners (next release
+    documentation).
+
+
+    Version of documentation: 3.1.1 (08/2023)
+
+
+    | Version        | Release | Release date | News |
+
+    | ---            | ---     | ---          | ---  |
+
+    | 3.1.1 (08/2023) | CS108    | 29.8.2023  | New version of API |
+
+
+    ## Getting started
+
+
+    This online document describes Home Credit (HC) API for partners - the means for partners through which they can offer their customers the benefits of one of Home Credit's payment methods or products.
+
+
+    Described services aim to allow customers the smooth running through the process of a loan arrangement. The services that allow achieving this goal are divided into the following groups:
+
+
+    | Group of services                                           | Purpose                                                                                                                                                      |
+
+    | ---                                                         | ---                                                                                                                                                          |
+
+    | [Security](#reference/security)                             | Security rules and principles                                                                                                                                |
+
+    | [Application resources](#reference/application-resources)   | Resources that allows the processing of *application* during its whole life cycle                                                                                |
+
+    | [Scoring resources](#reference/scoring-resources)           | Resources that allows customer preliminary scoring   |
+
+    | [Calculation resources](#reference/calculation-resources)   | Product calcualation resources |
+
+    | [Merchantsite resources](#reference/merchantsite-resources) | Services that should be developed and exposed by partners to allow HC asynchronously inform them about important changes regarding particular *application* |
+
+
+    ### Basic implementation
+
+
+    The basic and minimum way how to implement HCO API is to at least implement:
+
+    1. [Login](#reference/security/login-partner)
+        - Partner must be authorized to be able to access the most resources
+    1. [Create application](#reference/application-resources/create-application)
+        - Partner calls this resource to start the loan approval process by creating an `application`. `Application` itself and its ID are essential for successful process completion.
+    1. Redirect handlers.
+        - Special URLs for customers that shows payment success or rejection (more info [here](/#introduction/getting-started/parameters-added-to-return-urls)).
+    1. [Application process result](#reference/application-resources/process-result-of-single-application)
+        - Partner uses this group of resources to actively track results of partner's applications.
+
+    <!-- diagram minimální implementace -->
+
+
+    <!-- stavový diagram žádosti / objednávky -->
+
+
+    It is necessary to fill in all attributes marked as 'required' in the request. Filling optional parameters will result in a better application approval rate. Partner should always consider filling as many attributes as possible.
+
+
+    ### Parameters added to return URLs
+
+
+    During redirection of the customer from Home Credit's front-end application back to partner's website (to one of the provided URLs - `approvedRedirectUrl`, `rejectedRedirectUrl`) there are added some potentially useful information about a customer's outcome in Home Credit's application process:
+
+
+    - `applicationId` (string) - application identifier
+
+
+    - `applicationStatus` (enum) – Application status
+
+
+    - `cashStatus` (enum) - Cash loan status
+
+
+    - `withdrawal` (boolean) – True when the customer's purchase is financed directly from his already existing revolving loan; false when a new contract is being created (if available)
+
+
+    - `checkSum` (string) – hashed message
+
+
+    - e.g. `http://partnereshop.cz?&applicationId=123e4567-e89b-12d3-a456-426655440000&applicationStatus=CONFIRMED&cashStatus=PAID&checkSum=443E150D3406F6A8DC62C1DB224AFDD84FA9907071BB1AD9B2C7701031793662191501B26AADF3A31361341EA176C80B23D8A9A5E5B5219538289945FE0C20A7`
+
+
+    > **IMPORTANT NOTE:** Resource calls made from **Slovakia** MUST use appropriate dedicated `.sk` endpoints. E.g. `https://api.homecredit.sk/financing/v3/applications`
+
+
+    ## Documentation principles
+
+
+    - attributes in request/response object are optional unless stated otherwise (`required` flag under attribute name)
+
+
+    - a required attribute in an optional object means, that if an optional object is specified, it must contain the required attribute.
+
+
+    - all values in request/response attributes are just examples, except for enum values - these are the only possible values for the given attribute.
+
+
+    - documentation adheres to [semantic versioning](https://semver.org/spec/v2.0.0.html), which makes a distinction between *major*, *minor*, and *patch* versions.
+
+
+    ### Naming conventions
+
+
+    - we use camelCase for all object and attribute names
+
+
+    - we use CAPITAL_UNDERSCORE for enum values
+
+
+    - we use plural in resource names
+
+
+    ### Key words used in this document (RFC 2119)
+
+
+    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
+
+
+    ## Home Credit REST API principles
+
+
+    ### Request restrictions
+
+
+    Please, keep in mind following restrictions regarding requests:
+
+
+    - Maximum request size is **10 MB**.
+
+
+    - Maximum size of accepted single file is **500 kB**.
+
+
+    - Here is the list of supported files:
+
+
+    | MIME type                                                                 | Example(s)                 |
+
+    | ---                                                                       | ---                        |
+
+    | application/pdf                                                           | *.pdf                      |
+
+    | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet         | *.xlsx                     |
+
+    | application/vnd.openxmlformats-officedocument.wordprocessingml.document   | *.docx                     |
+
+    | application/vnd.openxmlformats-officedocument.presentationml.presentation | *.pptx                     |
+
+    | application/vnd.ms-excel                                                  | *.xls, *.xlt, *.xla        |
+
+    | application/msword                                                        | *.doc, *.dot               |
+
+    | application/vnd.ms-powerpoint                                             | *.ppt, *.pot, *.pps, *.ppa |
+
+    | plain/text                                                                | *.csv, *.txt               |
+
+    | image/jpeg                                                                | *.jpg, *.jpeg              |
+
+    | image/png                                                                 | *.png                      |
+
+    | image/gif                                                                 | *.gif                      |
+
+
+    ### API calls limits
+
+
+    When partner reaches API calls limit (partner calls the API more times than is partner's quota), he receives HTTP error 429. To inform partner about limits we use following response headers:
+
+
+    - `X-Rate-Limit-Limit` - The number of allowed requests in the current period
+
+
+    - `X-Rate-Limit-Remaining` - The number of remaining requests in the current period
+
+
+    - `X-Rate-Limit-Reset` - The number of seconds left in the current period
+
+
+    ### Versioning
+
+
+    We use API version in URL (e.g. `https://api.homecredit.cz/financing/v2/applications`). *Minor* changes and *patches* (see below) that don't break backwards compatibility do NOT increase API version, e.g. they MAY happen without prior notice and your application should be ready to handle them.
+
+
+    *Minor* changes include:
+
+
+    - adding new resource
+
+
+    - adding new optional header/URL parameter or optional body attribute to request
+
+
+    - adding new attribute to response body
+
+
+    - adding new error codes and messages, provided that error structure is the same
+
+
+    ### Response encoding
+
+
+    Unless stated otherwise, all responses are sent as `Content-Type: application/json; charset=utf-8`
+
+
+    ### HTTP status codes
+
+
+    We use following status codes throughout the API, except for OAuth flow when response codes are prescribed in RFC
+
+
+    - 200 `OK` - request was successful
+
+
+    - 201 `Created` - request was successful and resource was created
+
+
+    - 202 `Accepted` - request has been accepted for processing, but the processing has not been completed
+
+
+    - 204 `No Content` - we accepted partner's request but there is nothing to return (e.g. response is empty)
+
+
+    - 400 `Bad Request` - syntax error, e.g. request is missing required parameters/attributes or parameter values are of incorrect type
+
+
+    - 401 `Unauthorized` - partner is not authorized
+
+
+    - 403 `Forbidden` - access denied (e.g. user / application is not allowed to use the resource)
+
+
+    - 404 `Not Found` - resource could not be found
+
+
+    - 405 `Method Not Allowed` - specified method is not allowed for resource
+
+
+    - 422 `Unprocessable Entity` -  business (semantic) errors. Request is well-formed, but cannot be processed (e.g. payment due date is in past). Errors are specified in response body (see below)
+
+
+    - 429 `Too Many Requests` - partner exceeded the rate limit (see section [API calls limit](#introduction/api-calls-limits) above)
+
+
+    - 500 `Internal Server Error` - something went wrong on our side
+
+
+    - 503 `Service Unavailable` - there is planned service outage
+
+
+    ### Error handling
+
+
+    Besides HTTP status codes, which are the main indication if something goes wrong, we also use `errors` object to report more details about errors.
+
+
+    Errors object example:
+
+
+    ```javascript
+
+    {
+        ...
+
+        errors: [
+            {
+                "code": "ERR_100",
+                "message": "Invalid contract number",
+                "severity": "ERROR",
+                "attribute": "partyAccount.accountNumber",          // optional
+                "ticketId": "UAT1:AMS:20160516-091658.450:45e4" // optional
+            },
+            {
+                "code": 352,
+                "message": "Insufficiend funds for payment order realization",
+                "severity": "WARN"
+            },
+            {
+                "code": 523,
+                "message": "This order will trigger currency exchange operation",
+                "severity": "INFO"
+            }
+        ]
+    }
+
+    ```
+
+
+    Error object attributes
+
+    | Attribute name | Description                                                     |
+
+    | ---            | ---                                                             |
+
+    | code           | unique error code                                               |
+
+    | message        | human readable error description (non-localized)                |
+
+    | severity       | error severity (see below)                   |
+
+    | attribute      | json path of request attribute that caused the error (optional) |
+
+    | ticketId       | internal ticket ID, used for error backtracking                 |
+
+
+    There are 3 levels of error severity:
+
+
+    - `ERROR` - critical error, execution cannot continue. This MUST be indicated also by appropriate HTTP status code (e.g. `422 Unprocessable Entity`)
+
+
+    - `WARN` - non-critical error, execution can continue but further user interaction is advisable (for request to proceed, partner MUST specify this error code in `override` request attribute). This MIGHT be indicated also by appropriate HTTP status code.
+
+
+    - `INFO` - information only, execution can continue without user interaction.
+
+
+    #### Errors overview
+
+
+    | Status code | Code                  | Explanation                                                                     | Message                                                                                                        |
+
+    | ---         | ---                   | ---                                                                             | ---                                                                                                            |
+
+    | 400         | INVALID_REQUEST       | Request was not well formatted (malformed request syntax, size too large, etc.) | (*Various messages possible*) e.g. Unsupported combination of application and financed subject status                 |
+
+    | 404         | OBJECT_NOT_FOUND      | The requested resource could not be found                                       | (*Various messages possible*) e.g. Specified object was not found                                              |
+
+    | 422         | NOT_ALLOWED           | Operation is not allowed (internal reason)                                      | (*Various messages possible*) e.g. Not allowed (other reason)                                                    |
+
+    | 500         | INTERNAL_SERVER_ERROR | Unexpected condition was encountered and no more specific message is suitable   | (*Various messages possible*) e.g. Failed to parse given JSON                                                  |
+
+
+    ### Formats
+
+
+    - **date** and **time** uses [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) formatting, e.g.:
+      - date is represented as `YYYY-mm-dd`. Timezone (local) is added when necessary.
+      - time is represented as `Thh:mm:ss`. Timezone is added when necessary. Time with arbitrary number of digits respresenting miliseconds is also accepted (when [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format criteria is met) but the time without miliseconds is always returned.
+      - day of week is represented as number 1..7, with 1 being Monday
+      - week no. 1 is the week with the year's first Thursday in it
+
+    - **phone numbers** uses international format starting with '+' and including country code (example of valid number: `+420739111222`)
+
+
+    - **numbers format** number format is defined by [JSON standard](http://www.json.org), e.g. decimals are separated by `.`
+
+
+    - **money format** uses [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217) formatting (in minor units, e.g.: 12590 in minor units represents 125,90 CZK/EUR)
+
+
+    <!--
+
+    ## Partial update
+
+    We support partial update using PATCH method. Use JSON Merge Patch according to [RFC-7386](https://tools.ietf.org/html/rfc7386).
+
+    -->
+paths:
+  /authentication/v1/partner:
+    post:
+      responses:
+        "200":
+          description: Partner acces token issued
+          headers: {}
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: "#/components/schemas/PartnerLoginResult"
+              examples:
+                response:
+                  value:
+                    accessToken: TokenForPartnerTokenForPartnerTokenForPartnerTokenForPartner
+                    expiresIn: 7200
+        "400":
+          description: Unable to authenticate partner
+          headers: {}
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: "#/components/schemas/Errors"
+              examples:
+                response:
+                  value:
+                    errors:
+                      - code: BAD_REQUEST
+                        message: Bad request
+                        severity: ERROR
+                        attribute: Client.addresses[1].streetNumber
+                        ticketId: UAT1:AMS:20160516-091658.450:45e4
+      summary: Login partner
+      operationId: Login partner
+      description: Partner authenticate himself and obtain acces token
+      tags:
+        - Security
+      requestBody:
+        content:
+          application/json; charset=utf-8:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: Partner username
+                password:
+                  type: string
+                  description: Partner secret password
+              required:
+                - username
+                - password
+              example:
+                username: partner
+                password: partnerSecretPassword
+  /financing/v3/applications:
+    post:
+      responses:
+        "200":
+          description: Application was created in the past (nothing changed)
+          headers: {}
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                $ref: "#/components/schemas/ApplicationBase"
+              examples:
+                response:
+                  value:
+                    id: 123e4567-e89b-12d3-a456-426655440000
+                    status: CREATED
+                    workflowSteps:
+                      - code: REDIRECT
+                        priority: 1
+                        mandatory: true
+                        redirect:
+                          gatewayRedirectUrl: https://pujcka.homecredit.cz
+        "201":
+          description: Application was created
+          headers: {}
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                $ref: "#/components/schemas/ApplicationBase"
+              examples:
+                response:
+                  value:
+                    id: 123e4567-e89b-12d3-a456-426655440000
+                    status: CREATED
+                    workflowSteps:
+                      - code: REDIRECT
+                        priority: 1
+                        mandatory: true
+                        redirect:
+                          gatewayRedirectUrl: https://pujcka.homecredit.cz
+        "400":
+          description: There was an error processing request - invalid financedSubject.type
+          headers: {}
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                $ref: "#/components/schemas/Errors"
+              examples:
+                response:
+                  value:
+                    errors:
+                      - code: BAD_REQUEST
+                        message: Bad request
+                        severity: ERROR
+                        attribute: Client.addresses[1].streetNumber
+                        ticketId: UAT1:AMS:20160516-091658.450:45e4
+      summary: Create application
+      operationId: Create application
+      description: >-
+        The elementary flow starts when the customer is interested in some of
+        Home Credit's product.
+
+
+        Use `/financing/v3/applications` resource with the properly filled request that contains at least the following data
+
+        - Type of customer MUST be defined
+
+        - Customer's personal data (MAY be ommited for `ONLINE` process - see below)
+
+        - The financed subject of the application (cash or liability)
+
+        - Context information necessary for the continuation and completion of the process
+          - Channel type (`ONLINE` or `PHONE`)
+          - Channel data
+
+        There are two options for completing customer's application: online or over the phone. During online completion process (channel type `ONLINE`) the customer fills out the entire application himself, selects the product he is interested in and then signs the contract online. During process over the phone (channel type `PHONE`), the customer waits for a Home Credit operator to call him and guide him through the same process without the need to be online.
+
+
+        > **IMPORTANT NOTE:** `PHONE` process of completion is different from `ONLINE` in terms of the customer's personal data. "PHONE" process is allowed only for customer type `PERSON`. For `PHONE` process partner MUST provide following personal data and they MUST be valid: `firstName`, `lastName`, `email`, `phone`, `identificationNumber`. Validation rules for `ONLINE` process are more flexible therefore it is possible to create application even without any personal data at all. You will find specifications of validations in particular attributes' description.
+
+
+        If the request was successfully processed, partner receives HTTP status code 201 and `Application` object with at least the following information in the response:
+
+        - Application unique ID
+
+        - Application status
+
+
+        Before new application is created system checks if the application is not **duplicate**. Application is considered duplicate if the request contains `ApplicationRequest.customer.identificationNumber` and application with the same identification number and financed subject already exists. If the request is considered **duplicate** following will happen:
+          - if the previous `Application` is canceled (`Application.status = CANCELLED`), the new `Application` is created and partner receives new `applicationId`. Response HTTP status code is 201
+          - if previous `Application` was just created (i.e. without any recorded action by the customer), new `Application` is not created, partner receives `applicationId` of previously created application. Response HTTP status code is 200 ("double-click protection")
+          - if previous `Application` is already in the application process, partner receives HTTP status code 422 with error code `DUPLICATE_APPLICATION`
+
+
+
+        In case of an error, partner receives one of the following results:
+
+        | Status code | Code                   | Explanation                                                                     |
+
+        | ---         | ---                    | ---                                                                             |
+
+        | 400         | INVALID_REQUEST        | Request was not well-formatted (malformed request syntax, size too large, etc.) |
+
+        | 422         | UNPROCESSABLE          | Request was well-formed but was unable to be followed due to semantic errors    |
+
+        | 422         | DUPLICATE_APPLICATION | Creating of Application with duplicated Order number is not allowed             |
+
+        | 500         | INTERNAL_SERVER_ERROR  | Unexpected condition was encountered and no more specific message is suitable   |
+
+
+        Create a new *application*
+      tags:
+        - Application resources
+      requestBody:
+        content:
+          application/json;charset=UTF-8:
+            schema:
+              type: object
+              properties:
+                customer:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - PERSON
+                        - ENTREPRENEUR
+                        - LEGAL_ENTITY
+                      description: Customer type
+                    person:
+                      type: object
+                      properties:
+                        firstName:
+                          type: string
+                          description: Customer first (given) name. Name SHOULD follow regular expression
+                            `^[A-ZÁ-Ž]'?[- \u00A0a-zA-Zá-žÁ-Ž]*[a-zA-Zá-žÁ-Ž]$`,
+                            SHOULD be 2 to 30 characters long and characters
+                            SHOULD be in the `ISO 8859-2` character set.
+                        lastName:
+                          type: string
+                          description: Customer last (family) name. Name SHOULD follow regular expression
+                            `^[A-ZÁ-Ž]'?[-
+                            \u00A0a-zA-Zá-žÁ-Ž]*[a-zA-Zá-žÁ-Ž]$`,SHOULD be 2 to
+                            30 characters long and characters SHOULD be in the
+                            `ISO 8859-2` character set.
+                        fullName:
+                          type: string
+                          description: Customer full name, including academical degrees and salutation.
+                            Attribute `fullName` is parsed (and eventually
+                            shortened) into `firstName` and `lastName`;
+                            `fullName` is never returned in response. In case
+                            all three attributes are provided, `fullName` is
+                            discarded. Full name SHOULD be no longer than 100
+                            characters and characters SHOULD be in the `ISO
+                            8859-2` character set
+                        contacts:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              type:
+                                type: string
+                                enum:
+                                  - EMAIL
+                                  - MOBILE
+                                  - PHONE
+                                description: Contact type
+                              email:
+                                type: object
+                                properties:
+                                  value:
+                                    type: string
+                                    description: E-mail address of customer. MUST be valid email according to [RFC
+                                      2822](https://tools.ietf.org/html/rfc2822).
+                                required:
+                                  - value
+                                description: Email address of customer. REQUIRED for `EMAIL` Contact type.
+                              mobile:
+                                type: object
+                                properties:
+                                  countryCode:
+                                    type: string
+                                    description: MUST be valid countryCode.
+                                  value:
+                                    type: string
+                                    description: Mobile phone number SHOULD be 9 characters long. The mobile phone
+                                      number itself without country code SHOULD
+                                      begin with digit `6` or `7` (for CZ) or
+                                      with `9x` where `x` is different from `6`
+                                      (for SK).
+                                required:
+                                  - value
+                                description: Number of customer's mobile phone. REQUIRED for `MOBILE_PHONE`
+                                  Contact type.
+                              phone:
+                                type: object
+                                properties:
+                                  countryCode:
+                                    type: string
+                                    description: MUST be valid countryCode.
+                                  value:
+                                    type: string
+                                    description: Mobile phone number SHOULD be 9 characters long. The mobile phone
+                                      number itself without country code SHOULD
+                                      begin with digit `6` or `7` (for CZ) or
+                                      with `9x` where `x` is different from `6`
+                                      (for SK).
+                                required:
+                                  - value
+                                description: Number of customer's landline phone. REQUIRED for `PHONE` Contact
+                                  type.
+                            required:
+                              - type
+                          description: Contacts of person.
+                        addresses:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              city:
+                                type: string
+                                description: City. String values longer than 100 characters will be shortened to
+                                  100 characters.
+                              streetAddress:
+                                type: string
+                                description: Street/city part. String values longer than 100 characters will be
+                                  shortened to 100 characters.
+                              streetNumber:
+                                type: string
+                                description: Street number. String values longer than 50 characters will be
+                                  shortened to 50 characters.
+                              zip:
+                                type: string
+                                description: Postal code. String values longer than 10 characters will be
+                                  shortened to 10 characters.
+                              flags:
+                                type: array
+                                items:
+                                  type: string
+                                  enum:
+                                    - PERMANENT
+                                    - CONTACT
+                                description: Types of the address.
+                          description: Addresses.
+                        identificationNumber:
+                          type: string
+                          description: Customer's identification number (actually birth number). SHOULD be
+                            valid according to the legislation currently in
+                            effect. Customer MUST be at least 18 years old.
+                        ipAddress:
+                          type: string
+                          description: IPv4 or IPv6 address of a customer.
+                        fingerprintComponents:
+                          type: object
+                          properties:
+                            key:
+                              type: string
+                              description: Key
+                            value:
+                              type: string
+                              description: Value
+                          required:
+                            - key
+                            - value
+                          description: Fingerprints components.
+                      description: Customer data for type person that can be used for a smoother
+                        approval process. REQUIRED for `PERSON` Customer type.
+                    entrepreneur:
+                      type: object
+                      properties:
+                        businessName:
+                          type: string
+                          description: Name of business company.
+                        addresses:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              city:
+                                type: string
+                                description: City. String values longer than 100 characters will be shortened to
+                                  100 characters.
+                              streetAddress:
+                                type: string
+                                description: Street/city part. String values longer than 100 characters will be
+                                  shortened to 100 characters.
+                              streetNumber:
+                                type: string
+                                description: Street number. String values longer than 50 characters will be
+                                  shortened to 50 characters.
+                              zip:
+                                type: string
+                                description: Postal code. String values longer than 10 characters will be
+                                  shortened to 10 characters.
+                              flags:
+                                type: array
+                                items:
+                                  type: string
+                                  enum:
+                                    - PERMANENT
+                                    - CONTACT
+                                description: Types of the address.
+                          description: Addresses.
+                        "'businessIdentificationNumber'":
+                          type: string
+                          description: Company's identification number (known as IČO).
+                        ipAddress:
+                          type: string
+                          description: IPv4 or IPv6 address of a customer.
+                        fingerprintComponents:
+                          type: object
+                          properties:
+                            key:
+                              type: string
+                              description: Key
+                            value:
+                              type: string
+                              description: Value
+                          required:
+                            - key
+                            - value
+                          description: Fingerprints components.
+                      description: Customer data for type enterpreneur that can be used for a smoother
+                        approval process. REQUIRED for `ENTREPRENEUR` Customer
+                        type.
+                    legalEntity:
+                      type: object
+                      properties:
+                        businessName:
+                          type: string
+                          description: Name of business company.
+                        addresses:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              city:
+                                type: string
+                                description: City. String values longer than 100 characters will be shortened to
+                                  100 characters.
+                              streetAddress:
+                                type: string
+                                description: Street/city part. String values longer than 100 characters will be
+                                  shortened to 100 characters.
+                              streetNumber:
+                                type: string
+                                description: Street number. String values longer than 50 characters will be
+                                  shortened to 50 characters.
+                              zip:
+                                type: string
+                                description: Postal code. String values longer than 10 characters will be
+                                  shortened to 10 characters.
+                              flags:
+                                type: array
+                                items:
+                                  type: string
+                                  enum:
+                                    - PERMANENT
+                                    - CONTACT
+                                description: Types of the address.
+                          description: Addresses.
+                        "'businessIdentificationNumber'":
+                          type: string
+                          description: Company's identification number (known as IČO).
+                        ipAddress:
+                          type: string
+                          description: IPv4 or IPv6 address of a customer.
+                        fingerprintComponents:
+                          type: object
+                          properties:
+                            key:
+                              type: string
+                              description: Key
+                            value:
+                              type: string
+                              description: Value
+                          required:
+                            - key
+                            - value
+                          description: Fingerprints components.
+                      description: Customer data for type legalEntity that can be used for a smoother
+                        approval process. REQUIRED for `LEGAL_ENTITY` Customer
+                        type.
+                  required:
+                    - type
+                  description: Customer data. If known, customer data MAY be included for a
+                    smoother approval process for defined type of customer. This
+                    specification of type of customer is REQUIRED.
+                originationContext:
+                  type: object
+                  properties:
+                    channel:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - ONLINE
+                            - PHONE
+                          description: Type of origination channel
+                        online:
+                          type: object
+                          properties:
+                            approvedRedirect:
+                              type: string
+                              description: URL of the partner used for redirection of the customer back to
+                                partner website after the application approval.
+                                MUST be a valid URL according to [RFC
+                                3986](https://tools.ietf.org/html/rfc3986). URL
+                                SHOULD contain scheme (for example `https://`)
+                                otherwise some browsers will not redirect
+                                customer correctly.  MUST NOT be longer than
+                                1000 characters.
+                            rejectedRedirect:
+                              type: string
+                              description: URL of the partner used for redirection of the customer back to
+                                partner website after application rejection.
+                                MUST be valid URL according to [RFC
+                                3986](https://tools.ietf.org/html/rfc3986). URL
+                                SHOULD contain scheme (for example `https://`)
+                                otherwise some browsers will not redirect
+                                customer correctly. MUST NOT be longer than 1000
+                                characters.
+                            notificationEndpoint:
+                              type: string
+                              description: URL of the partner used as a notification endpoint for notifying
+                                partner about important updates in the
+                                application process (approval, rejection,
+                                cancellation, etc.). MUST be valid URL according
+                                to [RFC
+                                3986](https://tools.ietf.org/html/rfc3986). URL
+                                SHOULD contain scheme (for example `https://`).
+                                MUST NOT be longer than 1000 characters.
+                          description: Collection of partner's URLs used for redirection of a customer
+                            back to a partner website or as a notification
+                            endpoint. REQUIRED for `ONLINE` channel type
+                        phone:
+                          type: object
+                          properties:
+                            callRequest:
+                              type: object
+                              properties:
+                                type:
+                                  type: string
+                                  enum:
+                                    - DATES
+                                dates:
+                                  type: array
+                                  items:
+                                    type: string
+                                  description: The date (or dates) and time customer wants the operator to call
+                              required:
+                                - type
+                                - dates
+                              description: Specifying the request, when to call the customer
+                            notificationEndpoint:
+                              type: string
+                              description: URL of the partner used as a notification endpoint for notifying
+                                partner about important updates in the
+                                application process (approval, rejection,
+                                cancellation, etc.). MUST be valid URL according
+                                to [RFC
+                                3986](https://tools.ietf.org/html/rfc3986). URL
+                                SHOULD contain scheme (for example `https://`).
+                                MUST NOT be longer than 1000 characters.
+                          description: Additional data REQUIRED for `PHONE` channel type
+                      required:
+                        - type
+                      description: Origination channel
+                    precheckIds:
+                      type: array
+                      items:
+                        type: string
+                      description: Array of all precheck ids related to this application. If partner
+                        has run Precheck operation with this Customer's data he
+                        SHOULD provide precheckId into this attribute. SHOULD be
+                        valid precheckId. See Precheck operations and their's
+                        response.
+                    sourceId:
+                      type: string
+                      description: Identifier of source or campaign of lead origin. Partner SHOULD
+                        provide valid `sourceId`
+                    extendedData:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          key:
+                            type: string
+                            description: Key
+                          value:
+                            type: string
+                            description: Value
+                        required:
+                          - key
+                          - value
+                      description: "Additional data about application origin. List of supported `keys`
+                        for `extendedData`: `utm_source`, `utm_medium`,
+                        `utm_campaign`, `utm_term`, `utm_content`, `gclid`,
+                        `fbclid`, `url`."
+                  required:
+                    - channel
+                  description: Additional information about the context of financing application
+                    origination (e.g. redirect URL back to partner site)
+                financedSubject:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - CASH
+                        - LIABILITY
+                      description: Financed subject type
+                    cash:
+                      type: object
+                      properties:
+                        amount:
+                          type: object
+                          properties:
+                            value:
+                              type: number
+                              description: Amount in minor units (13300 represents 133) [ISO
+                                4217](https://en.wikipedia.org/wiki/ISO_4217)
+                            currency:
+                              type: string
+                              description: Amount currency [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217).
+                                Only local currency is allowed (CZK in Czech
+                                Republic and EUR in Slovakia).
+                          required:
+                            - value
+                            - currency
+                          description: Preferred amount customer's want to borrow. MAY be provided, if not
+                            provided, the default amount would be offered.
+                        financing:
+                          type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - LOAN_WALLET
+                              description: Financing type suitable for `CASH` application.
+                            loanWallet:
+                              type: object
+                              properties:
+                                preferredInstallment:
+                                  type: object
+                                  properties:
+                                    value:
+                                      type: number
+                                      description: Amount in minor units (13300 represents 133) [ISO
+                                        4217](https://en.wikipedia.org/wiki/ISO_4217)
+                                    currency:
+                                      type: string
+                                      description: Amount currency [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217).
+                                        Only local currency is allowed (CZK in
+                                        Czech Republic and EUR in Slovakia).
+                                  required:
+                                    - value
+                                    - currency
+                                  description: >-
+                                    Preferred installment amount customer would
+                                    like to pay in monthly installment to pay
+                                    his loan (amount should be rounded to
+                                    hundreds CZK/ 5 EUR).
+
+
+                                    OPTIONAL, if not provided, a minimum installment amount would be used.
+                                productSetCode:
+                                  type: string
+                                  description: Product set code. If chosen product is not from default product set
+                                    it is RECOMMENDED to provide code of its
+                                    product set.  Invalid product set is
+                                    discarded.
+                                productCode:
+                                  type: string
+                                  description: >-
+                                    Product code (obtained from calculation
+                                    result).
+
+
+                                    SHOULD be valid in combination with attributes `cash.amount` and `preferredInstallment`. Invalid product is discarded and the customer will choose the correct product after redirection to Home Credit's front-end application; examples of invalid settings: the product does not exist or does not support the requested credit amount.
+                              description: Settings for `LOAN_WALLET` Financing type. REQUIRED for
+                                `LOAN_WALLET` financing type
+                          required:
+                            - type
+                            - loanWallet
+                          description: Information about the form of financing `CASH` application (for
+                            example Close-end Loan, Revolving Loan, etc.).
+                      required:
+                        - financing
+                      description: Information about customer's financial requirements. REQUIRED for
+                        `CASH` type of Financed subject.
+                    liability:
+                      type: object
+                      properties:
+                        amount:
+                          type: object
+                          properties:
+                            value:
+                              type: number
+                              description: Amount in minor units (13300 represents 133) [ISO
+                                4217](https://en.wikipedia.org/wiki/ISO_4217)
+                            currency:
+                              type: string
+                              description: Amount currency [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217).
+                                Only local currency is allowed (CZK in Czech
+                                Republic and EUR in Slovakia).
+                          required:
+                            - value
+                            - currency
+                          description: Amount customer's need for consolidation of his liabilities. MAY be
+                            provided, if not provided, the default amount would
+                            be offered.
+                        financing:
+                          type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - CONSOLIDATION
+                              description: Financing type suitable for `LIABILITY` application.
+                            consolidation:
+                              type: object
+                              properties:
+                                installment:
+                                  type: object
+                                  properties:
+                                    value:
+                                      type: number
+                                      description: Amount in minor units (13300 represents 133) [ISO
+                                        4217](https://en.wikipedia.org/wiki/ISO_4217)
+                                    currency:
+                                      type: string
+                                      description: Amount currency [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217).
+                                        Only local currency is allowed (CZK in
+                                        Czech Republic and EUR in Slovakia).
+                                  required:
+                                    - value
+                                    - currency
+                                  description: Installment amount for chosen product. It is RECOMMENDED to provide
+                                    valid installment amount (from calculation
+                                    resources)
+                                productSetCode:
+                                  type: string
+                                  description: Product set code. If chosen product is not from default product set
+                                    it is RECOMMENDED to provide code of its
+                                    product set.  Invalid product set is
+                                    discarded.
+                                productCode:
+                                  type: string
+                                  description: >-
+                                    Product code (obtained from calculation
+                                    result).
+
+
+                                    SHOULD be valid in combination with attributes `liability.amount` and `installment`. Invalid product is discarded and the customer will choose the correct product after redirection to Home Credit's front-end application; examples of invalid settings: the product does not exist or does not fit with the installment amount.
+                              description: Settings for `CONSOLIDATION` Financing type. REQUIRED for
+                                `CONSOLIDATION` financing type
+                          required:
+                            - type
+                            - consolidation
+                          description: Information about the form of financing `LAIBILITY` application
+                            (for example Close-end Loan, Revolving Loan, etc.).
+                      required:
+                        - financing
+                      description: Information about customer's financial requirements. REQUIRED for
+                        `LIABILITY` type of Financed subject.
+                  required:
+                    - type
+                  description: Subject of financing (for example IPhone purchase, loan for 20 000
+                    CZK ...)
+              required:
+                - customer
+                - originationContext
+                - financedSubject
+              example:
+                customer:
+                  type: PERSON
+                  person:
+                    firstName: John
+                    lastName: Newborn
+                    fullName: Ing. John Newborn, Csc.
+                    contacts:
+                      - type: EMAIL
+                        email:
+                          value: john.newborn@country.com
+                        mobile:
+                          countryCode: "+420"
+                          value: "777123456"
+                        phone:
+                          countryCode: "+420"
+                          value: "777123456"
+                    addresses:
+                      - city: Prague
+                        streetAddress: Letenská
+                        streetNumber: "22"
+                        zip: 140 00
+                        flags:
+                          - PERMANENT
+                    identificationNumber: 890619/5723
+                    ipAddress: 172.10.10.1
+                    fingerprintComponents:
+                      key: property
+                      value: value
+                  entrepreneur:
+                    businessName: Planeta s.r.o.
+                    addresses:
+                      - city: Prague
+                        streetAddress: Letenská
+                        streetNumber: "22"
+                        zip: 140 00
+                        flags:
+                          - PERMANENT
+                    "'businessIdentificationNumber'": "123456854"
+                    ipAddress: 172.10.10.1
+                    fingerprintComponents:
+                      key: property
+                      value: value
+                  legalEntity:
+                    businessName: Planeta s.r.o.
+                    addresses:
+                      - city: Prague
+                        streetAddress: Letenská
+                        streetNumber: "22"
+                        zip: 140 00
+                        flags:
+                          - PERMANENT
+                    "'businessIdentificationNumber'": "123456854"
+                    ipAddress: 172.10.10.1
+                    fingerprintComponents:
+                      key: property
+                      value: value
+                originationContext:
+                  channel:
+                    type: ONLINE
+                    online:
+                      approvedRedirect: https://www.partnereshop.cz
+                      rejectedRedirect: https://www.partnereshop.cz/kosik
+                      notificationEndpoint: https://www.partnereshop.cz/order/AA234
+                    phone:
+                      callRequest:
+                        type: DATES
+                        dates: []
+                      notificationEndpoint: https://www.partnereshop.cz/order/AA234
+                  precheckIds: []
+                  sourceId: Cash_10_2020
+                  extendedData:
+                    - key: property
+                      value: value
+                financedSubject:
+                  type: CASH
+                  cash:
+                    amount:
+                      value: 13300
+                      currency: CZK
+                    financing:
+                      type: LOAN_WALLET
+                      loanWallet:
+                        preferredInstallment:
+                          value: 13300
+                          currency: CZK
+                        productSetCode: COCONL
+                        productCode: COCONL06
+                  liability:
+                    amount:
+                      value: 13300
+                      currency: CZK
+                    financing:
+                      type: CONSOLIDATION
+                      consolidation:
+                        installment:
+                          value: 13300
+                          currency: CZK
+                        productSetCode: COCONL
+                        productCode: COCONL06
+  /financing/v3/products/offers:
+    post:
+      responses:
+        "200":
+          description: calculateOffers
+          headers: {}
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalculateOffersResponse"
+              examples:
+                response:
+                  value:
+                    - type: LOAN_WALLET
+                      loanWallet:
+                        productCode: HCONLESHOP
+                        creditAmount:
+                          type: FIXED
+                          fixed:
+                            value: 13300
+                            currency: CZK
+                          variable:
+                            minimum:
+                              value: 13300
+                              currency: CZK
+                            maximum:
+                              value: 13300
+                              currency: CZK
+                        calculation:
+                          installment:
+                            value: 13300
+                            currency: CZK
+                          annualInterestRate: 0.17
+                          annualPercentageRate: "0.23"
+                          numberOfInstallments: 12
+                          installmentFirstDate: 2021-03-20
+                          installmentLastDate: 2022-02-20
+                          predictedProvisionDate: ""
+                          amountToPay:
+                            value: 13300
+                            currency: CZK
+                          installmentDay: 20
+                          maturityTextForm: 3 roky a 8 měsíců
+                          legalLine: "Ilustrativní výpočet dle zákona: Výše úvěru 10 000 Kč, roční úroková
+                            sazba 14,88 %, RPSN 15,9 %, celkem zaplatíte 10 806
+                            Kč. Jednotlivé po sobě jdoucí měsíční splátky: 957
+                            Kč, 947 Kč, 937 Kč, 926 Kč, 916 Kč, 906 Kč, 895 Kč,
+                            885 Kč, 875 Kč, 864 Kč, 854 Kč, 844 Kč. Splátky a
+                            částka, kterou celkem zaplatíte, jsou matematicky
+                            zaokrouhleny."
+                        flags:
+                          - FAVOURITE
+                        repaymentExamples:
+                          - installment:
+                              value: 13300
+                              currency: CZK
+                            numberOfInstallments: 12
+                            amountToPay:
+                              value: 13300
+                              currency: CZK
+                            flags:
+                              - FAVOURITE
+                            maturityTextForm: 3 roky a 8 měsíců
+                      liability:
+                        productCode: HCONLESHOP
+                        creditAmount:
+                          type: FIXED
+                          fixed:
+                            value: 13300
+                            currency: CZK
+                          variable:
+                            minimum:
+                              value: 13300
+                              currency: CZK
+                            maximum:
+                              value: 13300
+                              currency: CZK
+                        calculation:
+                          installment:
+                            value: 13300
+                            currency: CZK
+                          annualInterestRate: 0.17
+                          annualPercentageRate: "0.23"
+                          numberOfInstallments: 12
+                          installmentFirstDate: 2021-03-20
+                          installmentLastDate: 2022-02-20
+                          predictedProvisionDate: ""
+                          amountToPay:
+                            value: 13300
+                            currency: CZK
+                          installmentDay: 20
+                          maturityTextForm: 3 roky a 8 měsíců
+                          legalLine: "Ilustrativní výpočet dle zákona: Výše úvěru 10 000 Kč, roční úroková
+                            sazba 14,88 %, RPSN 15,9 %, celkem zaplatíte 10 806
+                            Kč. Jednotlivé po sobě jdoucí měsíční splátky: 957
+                            Kč, 947 Kč, 937 Kč, 926 Kč, 916 Kč, 906 Kč, 895 Kč,
+                            885 Kč, 875 Kč, 864 Kč, 854 Kč, 844 Kč. Splátky a
+                            částka, kterou celkem zaplatíte, jsou matematicky
+                            zaokrouhleny."
+                        flags:
+                          - FAVOURITE
+        "400":
+          description: "        Error in processing request"
+          headers: {}
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                $ref: "#/components/schemas/Errors"
+              examples:
+                response:
+                  value:
+                    errors:
+                      - code: BAD_REQUEST
+                        message: Bad request
+                        severity: ERROR
+                        attribute: Client.addresses[1].streetNumber
+                        ticketId: UAT1:AMS:20160516-091658.450:45e4
+      summary: Calculate offers
+      operationId: Calculate offers
+      description: >-
+        Partner uses this resource to calculate the appropriate product. To
+        perform the calculation, it is necessary to provide at least the
+        following data:
+
+        - type of customer
+
+        - the amount the customer wants to borrow
+
+        - financed subject
+
+        - method of financing
+
+
+        The partner may choose product set from which the products will be calculated. If none is provided, the default product set for the selected financing method is used.
+
+        If the customer has already chosen the product or the amount of the installment that he would like to repay, he can also state that in reqeust.
+
+
+        The response returns a collection of products that meet the input, for each product returns the amount of the credit amount, a set of financial parameters (minimum installment, interest rate, etc.) and for variable products several examples of repayment with different installments.
+
+
+        One product is labeled as favourite product which is the most suitable for the customer.
+
+
+        Possible error codes explanation:
+
+        | Status code | Code                | Explanation                                                                     |
+
+        | ---         | ---                 | ---                                                                             |
+
+        | 400         | INVALID_REQUEST     | Request was not well formatted (malformed request syntax, size too large, etc.) |
+
+        | 500         | FAILURE             | Internal failure                                                                |
+      tags:
+        - Calculation resources
+      requestBody:
+        content:
+          application/json;charset=UTF-8:
+            schema:
+              type: object
+              properties:
+                customer:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - PERSON
+                        - ENTREPRENEUR
+                        - LEGAL_ENTITY
+                      description: Customer type
+                  required:
+                    - type
+                  description: Customer data.
+                financedSubject:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                        - CASH
+                        - LIABILITY
+                      description: Financed subject type
+                    cash:
+                      type: object
+                      properties:
+                        amount:
+                          type: object
+                          properties:
+                            value:
+                              type: number
+                              description: Amount in minor units (13300 represents 133) [ISO
+                                4217](https://en.wikipedia.org/wiki/ISO_4217)
+                            currency:
+                              type: string
+                              description: Amount currency [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217).
+                                Only local currency is allowed (CZK in Czech
+                                Republic and EUR in Slovakia).
+                          required:
+                            - value
+                            - currency
+                          description: Preferred amount customer wants to lend. MAY be provided; if not
+                            provided, the maximum possible amount would be
+                            offered to the customer.
+                        financing:
+                          type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - LOAN_WALLET
+                              description: Financing type suitable for `CASH` application.
+                            loanWallet:
+                              type: object
+                              properties:
+                                preferredInstallment:
+                                  type: object
+                                  properties:
+                                    value:
+                                      type: number
+                                      description: Amount in minor units (13300 represents 133) [ISO
+                                        4217](https://en.wikipedia.org/wiki/ISO_4217)
+                                    currency:
+                                      type: string
+                                      description: Amount currency [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217).
+                                        Only local currency is allowed (CZK in
+                                        Czech Republic and EUR in Slovakia).
+                                  required:
+                                    - value
+                                    - currency
+                                  description: >-
+                                    Preferred installment amount customer would
+                                    like to pay in monthly installment to pay
+                                    his loan (amount should be rounded to
+                                    hundreds CZK/ 5 EUR).
+
+
+                                    OPTIONAL, if not provided, a minimum installment amount would be used.
+                                productSetCode:
+                                  type: string
+                                  description: Product set code. If chosen product is not from default product set
+                                    it is RECOMMENDED to provide code of its
+                                    product set.  Invalid product set is
+                                    discarded.
+                                productCode:
+                                  type: string
+                                  description: >-
+                                    Product code (obtained from calculation
+                                    result).
+
+
+                                    SHOULD be valid in combination with attributes `cash.amount` and `preferredInstallment`. Invalid product is discarded and the customer will choose the correct product after redirection to Home Credit's front-end application; examples of invalid settings: the product does not exist or does not support the requested credit amount.
+                              description: Settings for `LOAN_WALLET` Financing type. REQUIRED for
+                                `LOAN_WALLET` financing type
+                          required:
+                            - type
+                            - loanWallet
+                          description: Information about form of financing `CASH` application (for example
+                            Close-end Loan, Revolving Loan, etc.).
+                      required:
+                        - financing
+                      description: Information about customer's financial requirements. REQUIRED for
+                        `CASH` type of Financed subject.
+                    liability:
+                      type: object
+                      properties:
+                        amount:
+                          type: object
+                          properties:
+                            value:
+                              type: number
+                              description: Amount in minor units (13300 represents 133) [ISO
+                                4217](https://en.wikipedia.org/wiki/ISO_4217)
+                            currency:
+                              type: string
+                              description: Amount currency [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217).
+                                Only local currency is allowed (CZK in Czech
+                                Republic and EUR in Slovakia).
+                          required:
+                            - value
+                            - currency
+                          description: Preferred amount customer wants to lend. MAY be provided; if not
+                            provided, the maximum possible amount would be
+                            offered to the customer.
+                        financing:
+                          type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - CONSOLIDATION
+                              description: Financing type suitable for `LIABILITY` application.
+                            consolidation:
+                              type: object
+                              properties:
+                                productSetCode:
+                                  type: string
+                                  description: Product set code. If not provided, default product set is used.
+                                productCode:
+                                  type: string
+                                  description: Product code
+                              description: Settings for `CONSOLIDATION` Financing type. REQUIRED for
+                                `CONSOLIDATION` financing type
+                          required:
+                            - type
+                            - consolidation
+                          description: Information about form of financing `LIABILITY` application (for
+                            example Close-end Loan, Revolving Loan, etc.).
+                      required:
+                        - financing
+                      description: Information about customer's financial requirements. REQUIRED for
+                        `LIABILITY` type of Financed subject.
+                  required:
+                    - type
+                    - cash
+                    - liability
+                  description: Subject of financing
+              required:
+                - customer
+                - financedSubject
+              example:
+                customer:
+                  type: PERSON
+                financedSubject:
+                  type: CASH
+                  cash:
+                    amount:
+                      value: 13300
+                      currency: CZK
+                    financing:
+                      type: LOAN_WALLET
+                      loanWallet:
+                        preferredInstallment:
+                          value: 13300
+                          currency: CZK
+                        productSetCode: COCONL
+                        productCode: COCONL06
+                  liability:
+                    amount:
+                      value: 13300
+                      currency: CZK
+                    financing:
+                      type: CONSOLIDATION
+                      consolidation:
+                        productSetCode: COCONL
+                        productCode: COCONL06
+tags:
+  - name: Security
+    description: >-
+      To access our API, partner has to obtain *access token* first; this token
+      is a string of arbitrary length (30+ chars) and it has to be included in
+      HTTP header to every request to API. This section describes way to obtain
+      valid access token and use it to access protected resources.
+
+
+      - to obtain access token, use `/authentication/v1/partner` resource with appropriate parameters (see the [`/authentication/v1/partner` resource documentation](#reference/security/login-partner))
+
+
+      - access token should be present in every request using request header `Authorization`, with type `Bearer`. If partner's access token has value `secret_token`, it should be specified as follows:
+
+
+      `Authorization: Bearer secret_token`
+
+
+      So the real example using curl will look like:
+
+
+      ```
+
+      curl -H "Authorization: Bearer secret_token" https://api.homecredit.cz/financing/v2/applications
+
+      ```
+
+
+      - access token has limited time validity (for 2 hours). After it is expired, partner has to obtain new one using `/authentication/v1/partner` resource.
+
+
+      - if partner fails to specify access token, he will receive `401 Unauthorized` error and following response body:
+
+
+      ```
+
+      {
+         "error_description": "The access token is missing",
+         "error": "invalid_request"
+      }
+
+      ```
+
+
+      - if partner provides invalid access token, he will receive `401 Unauthorized` error and following response body:
+
+
+      ```
+
+      {
+          "error_description":"The access token is invalid or has expired",
+          "error":"invalid_token"
+      }
+
+      ```
+
+
+      > IMPORTANT NOTE: Partner must keep his access token and login credentials safe. Login credentials nor access token should NEVER be put into client page. If partner plans to integrate API calls in client flow without submitting the page to server, partner should implement REST endpoint bound to partner's shopping basket session, that will be used as a proxy to call HC API.
+
+
+      > NEVER transfer access token nor login credentials over plain HTTP. Such requests will be refused.
+  - name: Application resources
+    description: Services that allow the processing of *application* during its
+      whole lifecycle.
+  - name: Calculation resources
+servers:
+  - url: https://api.homecredit.cz
+components:
+  schemas:
+    ApplicationRequest:
+      type: object
+      required:
+        - customer
+        - originationContext
+        - financedSubject
+      properties:
+        customer:
+          $ref: "#/components/schemas/FinancingApplicationCustomer"
+        originationContext:
+          $ref: "#/components/schemas/FinancingOriginationContext"
+        financedSubject:
+          $ref: "#/components/schemas/FinancedSubjectBase"
+    FinancingApplicationCustomerBase:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - PERSON
+            - ENTREPRENEUR
+            - LEGAL_ENTITY
+          description: Customer type
+    FinancingApplicationCustomer:
+      allOf:
+        - $ref: "#/components/schemas/FinancingApplicationCustomerBase"
+        - type: object
+          properties:
+            person:
+              $ref: "#/components/schemas/FinancingPerson"
+            entrepreneur:
+              $ref: "#/components/schemas/Company"
+            legalEntity:
+              $ref: "#/components/schemas/Company"
+    FinancingPerson:
+      type: object
+      properties:
+        firstName:
+          type: string
+          example: John
+          description: Customer first (given) name. Name SHOULD follow regular expression
+            `^[A-ZÁ-Ž]'?[- \u00A0a-zA-Zá-žÁ-Ž]*[a-zA-Zá-žÁ-Ž]$`, SHOULD be 2 to
+            30 characters long and characters SHOULD be in the `ISO 8859-2`
+            character set.
+        lastName:
+          type: string
+          example: Newborn
+          description: Customer last (family) name. Name SHOULD follow regular expression
+            `^[A-ZÁ-Ž]'?[- \u00A0a-zA-Zá-žÁ-Ž]*[a-zA-Zá-žÁ-Ž]$`,SHOULD be 2 to
+            30 characters long and characters SHOULD be in the `ISO 8859-2`
+            character set.
+        fullName:
+          type: string
+          example: Ing. John Newborn, Csc.
+          description: Customer full name, including academical degrees and salutation.
+            Attribute `fullName` is parsed (and eventually shortened) into
+            `firstName` and `lastName`; `fullName` is never returned in
+            response. In case all three attributes are provided, `fullName` is
+            discarded. Full name SHOULD be no longer than 100 characters and
+            characters SHOULD be in the `ISO 8859-2` character set
+        contacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApplicationContact"
+          description: Contacts of person.
+        addresses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Address"
+          description: Addresses.
+        identificationNumber:
+          type: string
+          example: 890619/5723
+          description: Customer's identification number (actually birth number). SHOULD be
+            valid according to the legislation currently in effect. Customer
+            MUST be at least 18 years old.
+        ipAddress:
+          type: string
+          example: 172.10.10.1
+          description: IPv4 or IPv6 address of a customer.
+        fingerprintComponents:
+          $ref: "#/components/schemas/KeyValue"
+    Address:
+      type: object
+      properties:
+        city:
+          type: string
+          example: Prague
+          description: City. String values longer than 100 characters will be shortened to
+            100 characters.
+        streetAddress:
+          type: string
+          example: Letenská
+          description: Street/city part. String values longer than 100 characters will be
+            shortened to 100 characters.
+        streetNumber:
+          type: string
+          example: "22"
+          description: Street number. String values longer than 50 characters will be
+            shortened to 50 characters.
+        zip:
+          type: string
+          example: 140 00
+          description: Postal code. String values longer than 10 characters will be
+            shortened to 10 characters.
+        flags:
+          type: array
+          items:
+            $ref: "#/components/schemas/AddressFlag"
+          description: Types of the address.
+    AddressFlag:
+      type: string
+      enum:
+        - PERMANENT
+        - CONTACT
+    ApplicationContact:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - EMAIL
+            - MOBILE
+            - PHONE
+          description: Contact type
+        email:
+          $ref: "#/components/schemas/Email"
+        mobile:
+          $ref: "#/components/schemas/Phone"
+        phone:
+          $ref: "#/components/schemas/Phone"
+    Email:
+      type: object
+      required:
+        - value
+      properties:
+        value:
+          type: string
+          example: john.newborn@country.com
+          description: E-mail address of customer. MUST be valid email according to [RFC
+            2822](https://tools.ietf.org/html/rfc2822).
+    Phone:
+      type: object
+      required:
+        - value
+      properties:
+        countryCode:
+          type: string
+          example: "+420"
+          description: MUST be valid countryCode.
+        value:
+          type: string
+          example: "777123456"
+          description: Mobile phone number SHOULD be 9 characters long. The mobile phone
+            number itself without country code SHOULD begin with digit `6` or
+            `7` (for CZ) or with `9x` where `x` is different from `6` (for SK).
+    Company:
+      type: object
+      properties:
+        businessName:
+          type: string
+          example: Planeta s.r.o.
+          description: Name of business company.
+        addresses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Address"
+          description: Addresses.
+        "'businessIdentificationNumber'":
+          type: string
+          example: "123456854"
+          description: Company's identification number (known as IČO).
+        ipAddress:
+          type: string
+          example: 172.10.10.1
+          description: IPv4 or IPv6 address of a customer.
+        fingerprintComponents:
+          $ref: "#/components/schemas/KeyValue"
+    FinancedSubjectBase:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - CASH
+            - LIABILITY
+          description: Financed subject type
+        cash:
+          $ref: "#/components/schemas/CashBase"
+        liability:
+          $ref: "#/components/schemas/LiabilityBase"
+    CashBase:
+      type: object
+      required:
+        - financing
+      properties:
+        amount:
+          $ref: "#/components/schemas/Amount"
+        financing:
+          $ref: "#/components/schemas/CashFinancing"
+    CashFinancing:
+      type: object
+      required:
+        - type
+        - loanWallet
+      properties:
+        type:
+          type: string
+          enum:
+            - LOAN_WALLET
+          description: Financing type suitable for `CASH` application.
+        loanWallet:
+          $ref: "#/components/schemas/SettingsLoanWallet"
+    SettingsLoanWallet:
+      type: object
+      properties:
+        preferredInstallment:
+          $ref: "#/components/schemas/Amount"
+        productSetCode:
+          type: string
+          example: COCONL
+          description: Product set code. If chosen product is not from default product set
+            it is RECOMMENDED to provide code of its product set.  Invalid
+            product set is discarded.
+        productCode:
+          type: string
+          example: COCONL06
+          description: >-
+            Product code (obtained from calculation result).
+
+
+            SHOULD be valid in combination with attributes `cash.amount` and `preferredInstallment`. Invalid product is discarded and the customer will choose the correct product after redirection to Home Credit's front-end application; examples of invalid settings: the product does not exist or does not support the requested credit amount.
+    LiabilityBase:
+      type: object
+      required:
+        - financing
+      properties:
+        amount:
+          $ref: "#/components/schemas/Amount"
+        financing:
+          $ref: "#/components/schemas/LiabilityFinancing"
+    LiabilityFinancing:
+      type: object
+      required:
+        - type
+        - consolidation
+      properties:
+        type:
+          type: string
+          enum:
+            - CONSOLIDATION
+          description: Financing type suitable for `LIABILITY` application.
+        consolidation:
+          $ref: "#/components/schemas/ConsolidationSettings"
+    ConsolidationSettings:
+      type: object
+      properties:
+        installment:
+          $ref: "#/components/schemas/Amount"
+        productSetCode:
+          type: string
+          example: COCONL
+          description: Product set code. If chosen product is not from default product set
+            it is RECOMMENDED to provide code of its product set.  Invalid
+            product set is discarded.
+        productCode:
+          type: string
+          example: COCONL06
+          description: >-
+            Product code (obtained from calculation result).
+
+
+            SHOULD be valid in combination with attributes `liability.amount` and `installment`. Invalid product is discarded and the customer will choose the correct product after redirection to Home Credit's front-end application; examples of invalid settings: the product does not exist or does not fit with the installment amount.
+    FinancingOriginationContext:
+      type: object
+      required:
+        - channel
+      properties:
+        channel:
+          $ref: "#/components/schemas/OriginationChannel"
+        precheckIds:
+          type: array
+          items:
+            type: string
+          description: Array of all precheck ids related to this application. If partner
+            has run Precheck operation with this Customer's data he SHOULD
+            provide precheckId into this attribute. SHOULD be valid precheckId.
+            See Precheck operations and their's response.
+        sourceId:
+          type: string
+          example: Cash_10_2020
+          description: Identifier of source or campaign of lead origin. Partner SHOULD
+            provide valid `sourceId`
+        extendedData:
+          type: array
+          items:
+            $ref: "#/components/schemas/KeyValue"
+          description: "Additional data about application origin. List of supported `keys`
+            for `extendedData`: `utm_source`, `utm_medium`, `utm_campaign`,
+            `utm_term`, `utm_content`, `gclid`, `fbclid`, `url`."
+    OriginationChannel:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - ONLINE
+            - PHONE
+          description: Type of origination channel
+        online:
+          $ref: "#/components/schemas/MerchantURLs"
+        phone:
+          $ref: "#/components/schemas/PhoneSettings"
+    MerchantURLs:
+      type: object
+      properties:
+        approvedRedirect:
+          type: string
+          example: https://www.partnereshop.cz
+          description: URL of the partner used for redirection of the customer back to
+            partner website after the application approval. MUST be a valid URL
+            according to [RFC 3986](https://tools.ietf.org/html/rfc3986). URL
+            SHOULD contain scheme (for example `https://`) otherwise some
+            browsers will not redirect customer correctly.  MUST NOT be longer
+            than 1000 characters.
+        rejectedRedirect:
+          type: string
+          example: https://www.partnereshop.cz/kosik
+          description: URL of the partner used for redirection of the customer back to
+            partner website after application rejection. MUST be valid URL
+            according to [RFC 3986](https://tools.ietf.org/html/rfc3986). URL
+            SHOULD contain scheme (for example `https://`) otherwise some
+            browsers will not redirect customer correctly. MUST NOT be longer
+            than 1000 characters.
+        notificationEndpoint:
+          type: string
+          example: https://www.partnereshop.cz/order/AA234
+          description: URL of the partner used as a notification endpoint for notifying
+            partner about important updates in the application process
+            (approval, rejection, cancellation, etc.). MUST be valid URL
+            according to [RFC 3986](https://tools.ietf.org/html/rfc3986). URL
+            SHOULD contain scheme (for example `https://`). MUST NOT be longer
+            than 1000 characters.
+    PhoneSettings:
+      type: object
+      properties:
+        callRequest:
+          $ref: "#/components/schemas/CallRequest"
+        notificationEndpoint:
+          type: string
+          example: https://www.partnereshop.cz/order/AA234
+          description: URL of the partner used as a notification endpoint for notifying
+            partner about important updates in the application process
+            (approval, rejection, cancellation, etc.). MUST be valid URL
+            according to [RFC 3986](https://tools.ietf.org/html/rfc3986). URL
+            SHOULD contain scheme (for example `https://`). MUST NOT be longer
+            than 1000 characters.
+    CallRequest:
+      type: object
+      required:
+        - type
+        - dates
+      properties:
+        type:
+          type: string
+          enum:
+            - DATES
+        dates:
+          type: array
+          items:
+            type: string
+          description: The date (or dates) and time customer wants the operator to call
+    ApplicationBase:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          example: 123e4567-e89b-12d3-a456-426655440000
+          description: Primary identifier of the application
+        status:
+          type: string
+          enum:
+            - CREATED
+            - PRESCORED
+            - APPROVED
+            - VERIFICATION
+            - ALTERNATIVE
+            - CONFIRMED
+            - REJECTED
+            - CANCELLED
+          description: Application status
+        workflowSteps:
+          type: array
+          items:
+            $ref: "#/components/schemas/FinancingWorkflowStep"
+          description: Collection of currently available application process actions.
+    FinancingWorkflowStep:
+      type: object
+      required:
+        - code
+        - priority
+        - mandatory
+      properties:
+        code:
+          type: string
+          enum:
+            - REDIRECT
+          description: Workflow code
+        priority:
+          type: number
+          example: 1
+          description: Identifier of workflow step's priority expressed as number (lowest
+            number means highest priority)
+        mandatory:
+          type: boolean
+          example: true
+          description: Available workflow step for current application in application
+            process.
+        redirect:
+          $ref: "#/components/schemas/RedirectURL"
+    RedirectURL:
+      type: object
+      required:
+        - gatewayRedirectUrl
+      properties:
+        gatewayRedirectUrl:
+          type: string
+          example: https://pujcka.homecredit.cz
+          description: Gateway redirect URL. Partner SHOULD redirect the customer to this
+            address for the continuation of the application approval process.
+    CalculateOffersRequest:
+      type: object
+      required:
+        - customer
+        - financedSubject
+      properties:
+        customer:
+          $ref: "#/components/schemas/FinancingApplicationCustomerBase"
+        financedSubject:
+          $ref: "#/components/schemas/FinancedSubjectCalculateOffers"
+    FinancedSubjectCalculateOffers:
+      type: object
+      required:
+        - type
+        - cash
+        - liability
+      properties:
+        type:
+          type: string
+          enum:
+            - CASH
+            - LIABILITY
+          description: Financed subject type
+        cash:
+          $ref: "#/components/schemas/CashCalculateOffers"
+        liability:
+          $ref: "#/components/schemas/LiabilityCalculateOffers"
+    CashCalculateOffers:
+      type: object
+      required:
+        - financing
+      properties:
+        amount:
+          $ref: "#/components/schemas/Amount"
+        financing:
+          $ref: "#/components/schemas/CashFinancing"
+    LiabilityCalculateOffers:
+      type: object
+      required:
+        - financing
+      properties:
+        amount:
+          $ref: "#/components/schemas/Amount"
+        financing:
+          $ref: "#/components/schemas/LiabilityFinancingCalculateOffers"
+    LiabilityFinancingCalculateOffers:
+      type: object
+      required:
+        - type
+        - consolidation
+      properties:
+        type:
+          type: string
+          enum:
+            - CONSOLIDATION
+          description: Financing type suitable for `LIABILITY` application.
+        consolidation:
+          $ref: "#/components/schemas/SettingsConsolidationCalculateOffers"
+    SettingsConsolidationCalculateOffers:
+      type: object
+      properties:
+        productSetCode:
+          type: string
+          example: COCONL
+          description: Product set code. If not provided, default product set is used.
+        productCode:
+          type: string
+          example: COCONL06
+          description: Product code
+    CalculateOffersResponse:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - LOAN_WALLET
+            - LIABILITY
+          description: Financing type suitable for CASH application.
+        loanWallet:
+          $ref: "#/components/schemas/LoanWalletOffer"
+        liability:
+          $ref: "#/components/schemas/ProductOffer"
+    ProductOffer:
+      type: object
+      required:
+        - productCode
+        - creditAmount
+        - calculation
+      properties:
+        productCode:
+          type: string
+          example: HCONLESHOP
+          description: Product offer code
+        creditAmount:
+          $ref: "#/components/schemas/AvailableCreditAmount"
+        calculation:
+          $ref: "#/components/schemas/CalculationDetail"
+        flags:
+          type: array
+          items:
+            type: string
+            enum:
+              - FAVOURITE
+          description: Additional characteristics of product offer code
+    LoanWalletOffer:
+      allOf:
+        - $ref: "#/components/schemas/ProductOffer"
+        - type: object
+          properties:
+            repaymentExamples:
+              type: array
+              items:
+                $ref: "#/components/schemas/RepaymentExample"
+              description: Examples of debt repayement for flexible product with variable end
+                (with various installments)
+    AvailableCreditAmount:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - FIXED
+            - VARIABLE
+          description: Credit amount can be fixed for particular amount or variable
+        fixed:
+          $ref: "#/components/schemas/Amount"
+        variable:
+          $ref: "#/components/schemas/VariableCreditAmount"
+    VariableCreditAmount:
+      type: object
+      required:
+        - minimum
+        - maximum
+      properties:
+        minimum:
+          $ref: "#/components/schemas/Amount"
+        maximum:
+          $ref: "#/components/schemas/Amount"
+    CalculationDetail:
+      type: object
+      required:
+        - installment
+        - annualInterestRate
+        - annualPercentageRate
+        - numberOfInstallments
+        - installmentFirstDate
+        - installmentLastDate
+        - predictedProvisionDate
+        - amountToPay
+        - installmentDay
+        - maturityTextForm
+        - legalLine
+      properties:
+        installment:
+          $ref: "#/components/schemas/Amount"
+        annualInterestRate:
+          type: number
+          example: 0.17
+          description: Annual interest rate
+        annualPercentageRate:
+          type: string
+          example: "0.23"
+          description: Annual percentage rate of loan (so-called "RPSN"/"RPMN")
+        numberOfInstallments:
+          type: number
+          example: 12
+          description: Count of installments needed to repay purchased loan. Approximated
+            for product offers with a variable end.
+        installmentFirstDate:
+          type: string
+          example: 2021-03-20
+          description: Date of first installment.
+        installmentLastDate:
+          type: string
+          example: 2022-02-20
+          description: Date of last installment. Approximated for product offers with a
+            variable end.
+        predictedProvisionDate:
+          type: string
+          description: Predicted date of sending fund to customer's account
+        amountToPay:
+          $ref: "#/components/schemas/Amount"
+        installmentDay:
+          type: number
+          example: 20
+          description: Day of installment
+        maturityTextForm:
+          type: string
+          example: 3 roky a 8 měsíců
+          description: Text representation of maturity
+        legalLine:
+          type: string
+          example: "Ilustrativní výpočet dle zákona: Výše úvěru 10 000 Kč, roční úroková
+            sazba 14,88 %, RPSN 15,9 %, celkem zaplatíte 10 806 Kč. Jednotlivé
+            po sobě jdoucí měsíční splátky: 957 Kč, 947 Kč, 937 Kč, 926 Kč, 916
+            Kč, 906 Kč, 895 Kč, 885 Kč, 875 Kč, 864 Kč, 854 Kč, 844 Kč. Splátky
+            a částka, kterou celkem zaplatíte, jsou matematicky zaokrouhleny."
+          description: Legal example of repayment
+    RepaymentExample:
+      type: object
+      required:
+        - installment
+        - numberOfInstallments
+        - amountToPay
+        - maturityTextForm
+      properties:
+        installment:
+          $ref: "#/components/schemas/Amount"
+        numberOfInstallments:
+          type: number
+          example: 12
+          description: Count of installments needed to repay purchased loan for chosen
+            `installment` (approximated)
+        amountToPay:
+          $ref: "#/components/schemas/Amount"
+        flags:
+          type: array
+          items:
+            type: string
+            enum:
+              - FAVOURITE
+          description: Additional characteristics of example repayment
+        maturityTextForm:
+          type: string
+          example: 3 roky a 8 měsíců
+          description: Text representation of maturity
+    PrecheckRequest:
+      type: object
+      required:
+        - customer
+        - financedSubject
+      properties:
+        customer:
+          allOf:
+            - $ref: "#/components/schemas/FinancingApplicationCustomer"
+            - type: object
+              properties:
+                firstName:
+                  type: string
+                  example: John
+                  description: Customer first (given) name. String values longer than 100
+                    characters will be shortened to 100 characters. One of
+                    `firstName` and `fullName` is REQUIRED.
+                lastName:
+                  type: string
+                  example: Newborn
+                  description: Customer last (family) name. String values   longer than 100
+                    characters will be shortened to 100 characters.  One of
+                    `lastName` and `fullName` is REQUIRED.
+          description: Customer data
+        financedSubject:
+          $ref: "#/components/schemas/PrecheckFinancedSubject"
+    PrecheckFinancedSubject:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - CASH
+            - LIABILITY
+          description: Financed subject type
+    PrecheckResult:
+      type: object
+      required:
+        - recommendation
+        - result
+      properties:
+        id:
+          type: string
+          example: "1234"
+          description: Unique identifier of Precheck. Send this identificator in
+            ApplicationRequest for a better approval rate. The Id is sometimes
+            not provided (for example if precheck ends with a result `TIME_OUT`)
+        recommendation:
+          type: boolean
+          description: |-
+            A recommendation of whether the application should be created.
+
+            true = Application is likely going to be approved.
+            false = Application is likely going to be rejected.
+        result:
+          type: string
+          enum:
+            - NEW_CONTRACT
+            - EXISTING_CONTRACT
+            - TIME_OUT
+            - UNKNOWN
+          description: A detailed result of precheck.
+        message:
+          type: string
+          example: V HCO peněžence nemáte dostatečný limit.
+          description: Custom message for customers.
+    GetApplicationsResults:
+      type: object
+      properties:
+        applications:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApplicationResult"
+          description: List of applications results
+    ApplicationResult:
+      type: object
+      required:
+        - id
+        - createdDate
+        - finished
+      properties:
+        id:
+          type: string
+          example: 123e4567-e89b-12d3-a456-426655440000
+          description: Primary identifier of the application
+        createdDate:
+          type: string
+          example: 2020-07-15T00:00:00+02:00
+          description: Date of creation of application
+        finished:
+          type: boolean
+          description: A flag indicating whether the application has already been
+            completed or is still in progress.
+        result:
+          type: string
+          enum:
+            - SUCCESS
+            - REJECTED
+            - CANCELLED
+          description: A detailed result of (only) finished application.
+    NotificationRequest:
+      type: object
+      required:
+        - notificationContent
+        - sentDate
+        - checksum
+      properties:
+        notificationContent:
+          $ref: "#/components/schemas/NotificationContent"
+        sentDate:
+          type: string
+          example: 2020-07-15T00:00:00+02:00
+          description: Time when notification was sent (uses [ISO
+            8601](https://en.wikipedia.org/wiki/ISO_8601) formatting)
+        checksum:
+          type: string
+          example: f61c69a259b702d564b2032e554984dec3b713ff7bdde17fcb727d403ea0d730816f46ad2bbc06a1914225d5dfba0396927dbf1b0698081814877b5486950a15
+          description: Message checksum - result of HMAC with SHA512 (secret key is used)
+    NotificationContent:
+      type: object
+      required:
+        - applicationId
+        - applicationStatus
+        - notificationDate
+        - sequenceNumber
+      properties:
+        applicationId:
+          type: string
+          example: 123e4567-e89b-12d3-a456-426655440000
+          description: Primary identifier of the application
+        applicationStatus:
+          type: string
+          enum:
+            - CONFIRMED
+            - CREATED
+            - PRESCORED
+            - APPROVED
+            - VERIFICATION
+            - ALTERNATIVE
+            - REJECTED
+            - CANCELLED
+          description: Status of the application
+        cashStatus:
+          type: string
+          enum:
+            - PROCESSING
+            - CANCELLED
+            - TO_PAY
+            - PAID
+          description: Status of the Cash loan
+        notificationDate:
+          type: string
+          example: 2020-07-15T00:00:00+02:00
+          description: Time when notification was created (uses [ISO
+            8601](https://en.wikipedia.org/wiki/ISO_8601) formatting)
+        sequenceNumber:
+          type: number
+          example: 1
+          description: Notification sequence number
+    Error:
+      type: object
+      required:
+        - code
+        - message
+        - severity
+      properties:
+        code:
+          type: string
+          example: BAD_REQUEST
+          description: Unique internal error code
+        message:
+          type: string
+          example: Bad request
+          description: Human readable error description (non-localized)
+        severity:
+          type: string
+          enum:
+            - ERROR
+            - WARN
+            - INFO
+        attribute:
+          type: string
+          example: Client.addresses[1].streetNumber
+          description: JSON path of request attribute that caused the error (if applicable)
+        ticketId:
+          type: string
+          example: UAT1:AMS:20160516-091658.450:45e4
+          description: Internal ticket ID, used for error backtracking
+    Errors:
+      type: object
+      required:
+        - errors
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/Error"
+          description: Array with errors
+    Amount:
+      type: object
+      required:
+        - value
+        - currency
+      properties:
+        value:
+          type: number
+          example: 13300
+          description: Amount in minor units (13300 represents 133) [ISO
+            4217](https://en.wikipedia.org/wiki/ISO_4217)
+        currency:
+          type: string
+          example: CZK
+          description: Amount currency [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217).
+            Only local currency is allowed (CZK in Czech Republic and EUR in
+            Slovakia).
+    File:
+      type: object
+      required:
+        - filename
+      properties:
+        filename:
+          type: string
+          example: iphone6s.jpg
+          description: File name.
+    KeyValue:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          example: property
+          description: Key
+        value:
+          type: string
+          example: value
+          description: Value
+    BankAccount:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - IBAN
+            - NATIONAL
+          description: Account type
+        iban:
+          $ref: "#/components/schemas/AccountIBAN"
+        national:
+          $ref: "#/components/schemas/AccountNational"
+    AccountIBAN:
+      type: object
+      required:
+        - iban
+      properties:
+        iban:
+          type: string
+          example: CZ6508000000192000145399
+          description: Account number in IBAN format
+    AccountNational:
+      type: object
+      required:
+        - accountNumber
+        - bankCode
+      properties:
+        prefix:
+          type: string
+          example: "000000"
+          description: Account number prefix. For domestic accounts, this will be
+            specified in national format.
+        accountNumber:
+          type: string
+          example: "1235335010"
+          description: Account number. For domestic accounts, this will be specified in
+            national format.
+        bankCode:
+          type: string
+          example: "3030"
+          description: For domestic accounts, bank code in national format
+    PhoneNumber:
+      type: object
+      required:
+        - number
+      properties:
+        number:
+          type: string
+          example: "+420123456789"
+          description: Phone number (including country code)
+    PartnerLogin:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: partner
+          description: Partner username
+        password:
+          type: string
+          example: partnerSecretPassword
+          description: Partner secret password
+    PartnerLoginResult:
+      type: object
+      required:
+        - accessToken
+      properties:
+        accessToken:
+          type: string
+          example: TokenForPartnerTokenForPartnerTokenForPartnerTokenForPartner
+          description: Access token
+        expiresIn:
+          type: number
+          example: 7200
+          description: Token validity remaining time (in seconds)
+    TokenCodeRequest:
+      type: object
+      required:
+        - grant_type
+        - client_id
+        - client_secret
+      properties:
+        grant_type:
+          type: string
+          enum:
+            - authorization_code
+            - refresh_token
+          description: Grant flow type, only `authorization_code` and `refresh_token` is
+            supported
+        client_id:
+          type: string
+          example: my_app_id
+          description: "`client_id` parameter of partner's application, received at
+            application registration"
+        client_secret:
+          type: string
+          example: my_app_secret
+          description: "`client_secret` parameter of partner's application, received at
+            application registration"
+    TokenResponse:
+      type: object
+      required:
+        - token_type
+        - access_token
+        - expires_in
+      properties:
+        refresh_token:
+          type: string
+          example: 7dbadd74c434439db4fc9b2bbf8cabb3
+          description: refresh token, if supported
+        token_type:
+          type: string
+          example: bearer
+          description: token type. Always "bearer".
+        access_token:
+          type: string
+          example: ccafe62cbce645ce95b2acce839f4acc
+          description: access token, to be included in API request
+        expires_in:
+          type: number
+          example: 7200
+          description: access token validity, in seconds
+    Login_partner: {}
+    Create_application: {}
+    Financing_offers: {}
